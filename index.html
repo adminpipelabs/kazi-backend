@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kazi — Your Voice. Your Agent. Any Language.</title>
+  <meta name="description" content="A voice-first AI agent that works via WhatsApp in 100+ languages. You speak. Kazi does.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html {
+      scroll-behavior: smooth;
+    }
+    
+    body {
+      min-height: 100vh;
+      background: linear-gradient(165deg, #0a0a0a 0%, #1a1a1a 50%, #0d1117 100%);
+      font-family: "DM Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #fafafa;
+      overflow-x: hidden;
+    }
+    
+    /* Animations */
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    @keyframes pulse-ring {
+      0% { transform: scale(1); opacity: 0.8; }
+      100% { transform: scale(1.5); opacity: 0; }
+    }
+    
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes gradient-shift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    
+    @keyframes wave {
+      0%, 100% { height: 8px; }
+      50% { height: 24px; }
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    /* Utility Classes */
+    .hero-gradient {
+      background: linear-gradient(135deg, #ff6b35, #f7c59f, #ff6b35);
+      background-size: 200% 200%;
+      animation: gradient-shift 8s ease infinite;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    
+    .glass-card {
+      background: rgba(255, 255, 255, 0.03);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+    }
+    
+    .cta-button {
+      background: linear-gradient(135deg, #ff6b35 0%, #ff8c42 100%);
+      border: none;
+      color: white;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 24px rgba(255, 107, 53, 0.3);
+    }
+    
+    .cta-button:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 8px 32px rgba(255, 107, 53, 0.4);
+    }
+    
+    .cta-button:active {
+      transform: translateY(0) scale(0.98);
+    }
+    
+    /* Noise Overlay */
+    .noise-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.03;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+      z-index: 1;
+    }
+    
+    /* Ambient Glow */
+    .ambient-glow {
+      position: fixed;
+      top: -20%;
+      right: -10%;
+      width: 60%;
+      height: 60%;
+      background: radial-gradient(circle, rgba(255, 107, 53, 0.08) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    .ambient-glow-2 {
+      position: fixed;
+      bottom: -20%;
+      left: -10%;
+      width: 50%;
+      height: 50%;
+      background: radial-gradient(circle, rgba(255, 140, 66, 0.05) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    
+    /* Header */
+    header {
+      position: relative;
+      z-index: 10;
+      padding: 20px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+      animation: fadeIn 0.6s ease;
+    }
+    
+    .logo {
+      font-family: "Space Mono", monospace;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+    
+    .logo span {
+      color: #ff6b35;
+    }
+    
+    header .cta-button {
+      padding: 12px 24px;
+      border-radius: 100px;
+      font-size: 14px;
+    }
+    
+    /* Main */
+    main {
+      position: relative;
+      z-index: 10;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px 60px;
+    }
+    
+    /* Hero Section */
+    .hero {
+      text-align: center;
+      margin-bottom: 60px;
+      animation: fadeUp 0.8s ease forwards;
+    }
+    
+    .voice-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 16px;
+      background: rgba(255, 107, 53, 0.1);
+      border-radius: 100px;
+      margin-bottom: 32px;
+      border: 1px solid rgba(255, 107, 53, 0.2);
+    }
+    
+    .voice-wave {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      height: 24px;
+    }
+    
+    .wave-bar {
+      width: 3px;
+      background: linear-gradient(180deg, #ff6b35, #ff8c42);
+      border-radius: 2px;
+      animation: wave 1s ease-in-out infinite;
+    }
+    
+    .voice-badge span {
+      font-size: 13px;
+      color: #ff8c42;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+    }
+    
+    h1 {
+      font-size: clamp(40px, 12vw, 72px);
+      font-weight: 700;
+      line-height: 1.05;
+      margin-bottom: 24px;
+      letter-spacing: -2px;
+    }
+    
+    .hero-subtitle {
+      font-size: clamp(16px, 4vw, 20px);
+      color: rgba(255, 255, 255, 0.6);
+      max-width: 500px;
+      margin: 0 auto 40px;
+      line-height: 1.6;
+    }
+    
+    /* Email Form */
+    .email-form {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    
+    .email-input-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    .email-form input {
+      flex: 1;
+      min-width: 200px;
+      padding: 16px 20px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: white;
+      font-size: 16px;
+      font-family: inherit;
+      transition: border-color 0.3s ease;
+    }
+    
+    .email-form input::placeholder {
+      color: rgba(255, 255, 255, 0.4);
+    }
+    
+    .email-form input:focus {
+      outline: none;
+      border-color: rgba(255, 107, 53, 0.5);
+    }
+    
+    .email-form .cta-button {
+      padding: 16px 32px;
+      border-radius: 14px;
+      font-size: 16px;
+      white-space: nowrap;
+    }
+    
+    .email-form .hint {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+    
+    /* Demo Card */
+    .demo-section {
+      animation: fadeUp 0.8s ease 0.2s forwards;
+      opacity: 0;
+      margin-bottom: 80px;
+    }
+    
+    .demo-card {
+      padding: 32px 24px;
+      max-width: 500px;
+      margin: 0 auto;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .message {
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+    }
+    
+    .message.user {
+      justify-content: flex-end;
+    }
+    
+    .message-bubble {
+      padding: 16px 20px;
+      max-width: 85%;
+    }
+    
+    .message.user .message-bubble {
+      background: rgba(255, 107, 53, 0.15);
+      border-radius: 20px 20px 4px 20px;
+    }
+    
+    .message.agent .message-bubble {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 20px 20px 20px 4px;
+    }
+    
+    .voice-message-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    
+    .mic-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff6b35, #ff8c42);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .waveform {
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    }
+    
+    .waveform-bar {
+      width: 2px;
+      background: #ff8c42;
+      border-radius: 1px;
+    }
+    
+    .duration {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .transcription {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.9);
+      font-style: italic;
+      transition: opacity 0.4s ease;
+    }
+    
+    .agent-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1a1a1a, #2a2a2a);
+      border: 2px solid rgba(255, 107, 53, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Space Mono", monospace;
+      font-weight: 700;
+      font-size: 14px;
+      color: #ff6b35;
+      flex-shrink: 0;
+    }
+    
+    .agent-response {
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    
+    .agent-response .check {
+      color: #4ade80;
+    }
+    
+    /* Language Tags */
+    .language-tags {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+    
+    .language-tag {
+      padding: 6px 14px;
+      border-radius: 100px;
+      font-size: 13px;
+      font-weight: 500;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.6);
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: default;
+    }
+    
+    .language-tag.active {
+      background: rgba(255, 107, 53, 0.2);
+      border-color: rgba(255, 107, 53, 0.5);
+      color: #ff8c42;
+    }
+    
+    /* Features */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-bottom: 80px;
+      animation: fadeUp 0.8s ease 0.4s forwards;
+      opacity: 0;
+    }
+    
+    .feature-card {
+      padding: 28px 24px;
+      text-align: center;
+      transition: transform 0.3s ease, border-color 0.3s ease;
+    }
+    
+    .feature-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(255, 107, 53, 0.2);
+    }
+    
+    .feature-icon {
+      font-size: 40px;
+      display: block;
+      margin-bottom: 16px;
+    }
+    
+    .feature-card h3 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    
+    .feature-card p {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.5);
+      line-height: 1.5;
+    }
+    
+    /* How it Works */
+    .how-it-works {
+      margin-bottom: 80px;
+      animation: fadeUp 0.8s ease 0.5s forwards;
+      opacity: 0;
+    }
+    
+    .how-it-works h2 {
+      text-align: center;
+      font-size: clamp(28px, 6vw, 36px);
+      margin-bottom: 48px;
+      letter-spacing: -1px;
+    }
+    
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      padding: 24px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      transition: all 0.3s ease;
+    }
+    
+    .step:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 107, 53, 0.2);
+    }
+    
+    .step-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(255, 107, 53, 0.2), rgba(255, 140, 66, 0.1));
+      border: 1px solid rgba(255, 107, 53, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Space Mono", monospace;
+      font-weight: 700;
+      color: #ff8c42;
+      flex-shrink: 0;
+    }
+    
+    .step-content h4 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    
+    .step-content p {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.5);
+      line-height: 1.5;
+    }
+    
+    /* Final CTA */
+    .final-cta {
+      text-align: center;
+      padding: 60px 24px;
+      animation: fadeUp 0.8s ease 0.6s forwards;
+      opacity: 0;
+    }
+    
+    .final-cta h2 {
+      font-size: clamp(28px, 8vw, 44px);
+      font-weight: 700;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+    }
+    
+    .final-cta .social-proof {
+      color: rgba(255, 255, 255, 0.5);
+      margin-bottom: 32px;
+      font-size: 16px;
+    }
+    
+    .final-cta .cta-button {
+      padding: 18px 48px;
+      border-radius: 100px;
+      font-size: 18px;
+    }
+    
+    /* Footer */
+    footer {
+      position: relative;
+      z-index: 10;
+      text-align: center;
+      padding: 40px 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    
+    footer p {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.3);
+    }
+    
+    /* Mobile adjustments */
+    @media (max-width: 480px) {
+      .email-input-group {
+        flex-direction: column;
+      }
+      
+      .email-form input,
+      .email-form .cta-button {
+        width: 100%;
+      }
+      
+      .message-bubble {
+        max-width: 90%;
+      }
+      
+      .step {
+        flex-direction: column;
+        text-align: center;
+        align-items: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="noise-overlay"></div>
+  <div class="ambient-glow"></div>
+  <div class="ambient-glow-2"></div>
+  
+  <!-- Header -->
+  <header>
+    <div class="logo"><span>K</span>azi</div>
+    <button class="cta-button">Get Early Access</button>
+  </header>
+  
+  <!-- Main Content -->
+  <main>
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="voice-badge">
+        <div class="voice-wave">
+          <div class="wave-bar" style="animation-delay: 0s;"></div>
+          <div class="wave-bar" style="animation-delay: 0.1s;"></div>
+          <div class="wave-bar" style="animation-delay: 0.2s;"></div>
+          <div class="wave-bar" style="animation-delay: 0.3s;"></div>
+          <div class="wave-bar" style="animation-delay: 0.4s;"></div>
+        </div>
+        <span>VOICE-FIRST AI</span>
+      </div>
+      
+      <h1>
+        Your voice.<br>
+        <span class="hero-gradient">Your agent.</span><br>
+        Any language.
+      </h1>
+      
+      <p class="hero-subtitle">
+        Speak into WhatsApp. Kazi handles the rest — emails, reminders, tasks — in your language.
+      </p>
+      
+      <form class="email-form" onsubmit="handleSubmit(event)">
+        <div class="email-input-group">
+          <input type="email" placeholder="Enter your email" required>
+          <button type="submit" class="cta-button">Join Waitlist</button>
+        </div>
+        <p class="hint">Free for early adopters. No spam, ever.</p>
+      </form>
+    </section>
+    
+    <!-- Demo Section -->
+    <section class="demo-section">
+      <div class="demo-card glass-card">
+        <div class="chat-container">
+          <!-- User Voice Message -->
+          <div class="message user">
+            <div class="message-bubble">
+              <div class="voice-message-header">
+                <div class="mic-icon">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                    <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                    <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                  </svg>
+                </div>
+                <div class="waveform" id="waveform"></div>
+                <span class="duration">0:03</span>
+              </div>
+              <p class="transcription" id="transcription">"Send an email to my team"</p>
+            </div>
+          </div>
+          
+          <!-- Agent Response -->
+          <div class="message agent">
+            <div class="agent-avatar">K</div>
+            <div class="message-bubble">
+              <p class="agent-response">
+                <span class="check">✓</span> Done! Email sent to your team with the weekly update.
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Language Tags -->
+        <div class="language-tags">
+          <span class="language-tag active" data-index="0">Hello</span>
+          <span class="language-tag" data-index="1">Hola</span>
+          <span class="language-tag" data-index="2">Jambo</span>
+          <span class="language-tag" data-index="3">Olá</span>
+          <span class="language-tag" data-index="4">नमस्ते</span>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Features -->
+    <section class="features">
+      <div class="feature-card glass-card">
+        <span class="feature-icon">🎙️</span>
+        <h3>Just speak</h3>
+        <p>Send a voice message on WhatsApp. No typing, no apps to learn.</p>
+      </div>
+      <div class="feature-card glass-card">
+        <span class="feature-icon">🌍</span>
+        <h3>99 languages</h3>
+        <p>English, Swahili, Hindi, Portuguese — Kazi understands you.</p>
+      </div>
+      <div class="feature-card glass-card">
+        <span class="feature-icon">⚡</span>
+        <h3>Tasks, done</h3>
+        <p>Emails, reminders, searches. Speak once, Kazi handles it.</p>
+      </div>
+    </section>
+    
+    <!-- How it Works -->
+    <section class="how-it-works">
+      <h2>How it works</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h4>Open WhatsApp</h4>
+            <p>Message Kazi like you would any contact. No new apps to download.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h4>Send a voice note</h4>
+            <p>Speak naturally in your language. "Remind me to call mom at 5pm."</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h4>Kazi handles it</h4>
+            <p>Your task is done. Reminders set. Emails sent. You move on.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- Final CTA -->
+    <section class="final-cta">
+      <h2>
+        Stop typing.<br>
+        <span class="hero-gradient">Start speaking.</span>
+      </h2>
+      <p class="social-proof">Join 500+ people on the waitlist</p>
+      <button class="cta-button" onclick="document.querySelector('.email-form input').focus()">
+        Get Early Access — Free
+      </button>
+    </section>
+  </main>
+  
+  <!-- Footer -->
+  <footer>
+    <p>© 2025 Kazi · Built for the world</p>
+  </footer>
+  
+  <script>
+    // Language data
+    const languages = [
+      { greeting: 'Hello', task: 'Send an email to my team' },
+      { greeting: 'Hola', task: 'Envía un correo a mi equipo' },
+      { greeting: 'Jambo', task: 'Tuma barua pepe kwa timu yangu' },
+      { greeting: 'Olá', task: 'Envie um email para minha equipe' },
+      { greeting: 'नमस्ते', task: 'मेरी टीम को ईमेल भेजो' },
+    ];
+    
+    let activeIndex = 0;
+    
+    // Generate waveform bars
+    const waveform = document.getElementById('waveform');
+    for (let i = 0; i < 20; i++) {
+      const bar = document.createElement('div');
+      bar.className = 'waveform-bar';
+      bar.style.height = `${Math.random() * 16 + 4}px`;
+      waveform.appendChild(bar);
+    }
+    
+    // Rotate languages
+    function rotateLanguage() {
+      activeIndex = (activeIndex + 1) % languages.length;
+      
+      // Update transcription
+      const transcription = document.getElementById('transcription');
+      transcription.style.opacity = '0';
+      
+      setTimeout(() => {
+        transcription.textContent = `"${languages[activeIndex].task}"`;
+        transcription.style.opacity = '1';
+      }, 200);
+      
+      // Update tags
+      const tags = document.querySelectorAll('.language-tag');
+      tags.forEach((tag, i) => {
+        if (i === activeIndex) {
+          tag.classList.add('active');
+        } else {
+          tag.classList.remove('active');
+        }
+      });
+    }
+    
+    setInterval(rotateLanguage, 3000);
+    
+    // Form submission
+    async function handleSubmit(e) {
+      e.preventDefault();
+      const input = e.target.querySelector('input');
+      const button = e.target.querySelector('button');
+      const email = input.value;
+      
+      button.textContent = 'Joining...';
+      button.disabled = true;
+      
+      try {
+        const res = await fetch('https://enchanting-possibility-production-60d1.up.railway.app/api/waitlist', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        
+        if (res.ok) {
+          button.textContent = '✓ You\'re in!';
+          input.value = '';
+          setTimeout(() => {
+            button.textContent = 'Join Waitlist';
+            button.disabled = false;
+          }, 3000);
+        } else {
+          throw new Error('Failed');
+        }
+      } catch (err) {
+        button.textContent = 'Try again';
+        button.disabled = false;
+      }
+    }
+    
+    // Smooth scroll for CTA buttons
+    document.querySelectorAll('.cta-button').forEach(btn => {
+      if (!btn.type || btn.type !== 'submit') {
+        btn.addEventListener('click', () => {
+          document.querySelector('.email-form input').scrollIntoView({ 
+            behavior: 'smooth',
+            block: 'center'
+          });
+          setTimeout(() => {
+            document.querySelector('.email-form input').focus();
+          }, 500);
+        });
+      }
+    });
+  </script>
+</body>
+</html>
