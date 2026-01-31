@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 import os
 
@@ -17,9 +18,10 @@ waitlist = []
 class WaitlistSignup(BaseModel):
     email: str
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def root():
-    return {"name": "Kazi API", "status": "running"}
+    with open("index.html", "r") as f:
+        return f.read()
 
 @app.get("/webhook")
 async def verify_webhook(request: Request):
