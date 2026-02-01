@@ -27,7 +27,6 @@
       overflow-x: hidden;
     }
     
-    /* Animations */
     @keyframes float {
       0%, 100% { transform: translateY(0px); }
       50% { transform: translateY(-10px); }
@@ -58,7 +57,6 @@
       to { opacity: 1; }
     }
     
-    /* Utility Classes */
     .hero-gradient {
       background: linear-gradient(135deg, #ff6b35, #f7c59f, #ff6b35);
       background-size: 200% 200%;
@@ -96,7 +94,15 @@
       transform: translateY(0) scale(0.98);
     }
     
-    /* Noise Overlay */
+    .whatsapp-button {
+      background: #25D366;
+      box-shadow: 0 4px 24px rgba(37, 211, 102, 0.3);
+    }
+    
+    .whatsapp-button:hover {
+      box-shadow: 0 8px 32px rgba(37, 211, 102, 0.4);
+    }
+    
     .noise-overlay {
       position: fixed;
       top: 0;
@@ -109,7 +115,6 @@
       z-index: 1;
     }
     
-    /* Ambient Glow */
     .ambient-glow {
       position: fixed;
       top: -20%;
@@ -132,7 +137,6 @@
       z-index: 0;
     }
     
-    /* Header */
     header {
       position: relative;
       z-index: 10;
@@ -162,7 +166,6 @@
       font-size: 14px;
     }
     
-    /* Main */
     main {
       position: relative;
       z-index: 10;
@@ -171,7 +174,6 @@
       padding: 40px 24px 60px;
     }
     
-    /* Hero Section */
     .hero {
       text-align: center;
       margin-bottom: 60px;
@@ -226,13 +228,35 @@
       line-height: 1.6;
     }
     
-    /* Email Form */
+    .cta-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    
+    .cta-section .whatsapp-button {
+      display: inline-block;
+      text-decoration: none;
+      padding: 16px 32px;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+    }
+    
+    .cta-section .divider {
+      color: rgba(255, 255, 255, 0.4);
+      font-size: 14px;
+    }
+    
     .email-form {
       display: flex;
       flex-direction: column;
       gap: 12px;
-      max-width: 400px;
-      margin: 0 auto;
+      width: 100%;
     }
     
     .email-input-group {
@@ -276,7 +300,6 @@
       color: rgba(255, 255, 255, 0.4);
     }
     
-    /* Demo Card */
     .demo-section {
       animation: fadeUp 0.8s ease 0.2s forwards;
       opacity: 0;
@@ -388,7 +411,6 @@
       color: #4ade80;
     }
     
-    /* Language Tags */
     .language-tags {
       display: flex;
       gap: 8px;
@@ -415,7 +437,6 @@
       color: #ff8c42;
     }
     
-    /* Features */
     .features {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -454,7 +475,6 @@
       line-height: 1.5;
     }
     
-    /* How it Works */
     .how-it-works {
       margin-bottom: 80px;
       animation: fadeUp 0.8s ease 0.5s forwards;
@@ -519,7 +539,6 @@
       line-height: 1.5;
     }
     
-    /* Final CTA */
     .final-cta {
       text-align: center;
       padding: 60px 24px;
@@ -546,7 +565,6 @@
       font-size: 18px;
     }
     
-    /* Footer */
     footer {
       position: relative;
       z-index: 10;
@@ -560,7 +578,6 @@
       color: rgba(255, 255, 255, 0.3);
     }
     
-    /* Mobile adjustments */
     @media (max-width: 480px) {
       .email-input-group {
         flex-direction: column;
@@ -588,15 +605,12 @@
   <div class="ambient-glow"></div>
   <div class="ambient-glow-2"></div>
   
-  <!-- Header -->
   <header>
     <div class="logo"><span>K</span>azi</div>
-    <button class="cta-button">Get Early Access</button>
+    <a href="https://wa.me/15551713695?text=Hello%20Kazi" target="_blank" class="cta-button whatsapp-button" style="text-decoration: none;">Try Now</a>
   </header>
   
-  <!-- Main Content -->
   <main>
-    <!-- Hero Section -->
     <section class="hero">
       <div class="voice-badge">
         <div class="voice-wave">
@@ -619,20 +633,24 @@
         Speak into WhatsApp. Kazi handles the rest — emails, reminders, tasks — in your language.
       </p>
       
-      <form class="email-form" onsubmit="handleSubmit(event)">
-        <div class="email-input-group">
-          <input type="email" placeholder="Enter your email" required>
-          <button type="submit" class="cta-button">Join Waitlist</button>
-        </div>
-        <p class="hint">Free for early adopters. No spam, ever.</p>
-      </form>
+      <div class="cta-section">
+        <a href="https://wa.me/15551713695?text=Hello%20Kazi" target="_blank" class="cta-button whatsapp-button">
+          💬 Try Kazi Now on WhatsApp
+        </a>
+        <p class="divider">or join the waitlist</p>
+        <form class="email-form" onsubmit="handleSubmit(event)">
+          <div class="email-input-group">
+            <input type="email" placeholder="Enter your email" required>
+            <button type="submit" class="cta-button">Join Waitlist</button>
+          </div>
+          <p class="hint">Free for early adopters. No spam, ever.</p>
+        </form>
+      </div>
     </section>
     
-    <!-- Demo Section -->
     <section class="demo-section">
       <div class="demo-card glass-card">
         <div class="chat-container">
-          <!-- User Voice Message -->
           <div class="message user">
             <div class="message-bubble">
               <div class="voice-message-header">
@@ -649,7 +667,6 @@
             </div>
           </div>
           
-          <!-- Agent Response -->
           <div class="message agent">
             <div class="agent-avatar">K</div>
             <div class="message-bubble">
@@ -660,7 +677,6 @@
           </div>
         </div>
         
-        <!-- Language Tags -->
         <div class="language-tags">
           <span class="language-tag active" data-index="0">Hello</span>
           <span class="language-tag" data-index="1">Hola</span>
@@ -671,7 +687,6 @@
       </div>
     </section>
     
-    <!-- Features -->
     <section class="features">
       <div class="feature-card glass-card">
         <span class="feature-icon">🎙️</span>
@@ -690,7 +705,6 @@
       </div>
     </section>
     
-    <!-- How it Works -->
     <section class="how-it-works">
       <h2>How it works</h2>
       <div class="steps">
@@ -718,26 +732,23 @@
       </div>
     </section>
     
-    <!-- Final CTA -->
     <section class="final-cta">
       <h2>
         Stop typing.<br>
         <span class="hero-gradient">Start speaking.</span>
       </h2>
       <p class="social-proof">Join 500+ people on the waitlist</p>
-      <button class="cta-button" onclick="document.querySelector('.email-form input').focus()">
-        Get Early Access — Free
-      </button>
+      <a href="https://wa.me/15551713695?text=Hello%20Kazi" target="_blank" class="cta-button whatsapp-button" style="text-decoration: none; display: inline-block;">
+        💬 Try Kazi Now
+      </a>
     </section>
   </main>
   
-  <!-- Footer -->
   <footer>
     <p>© 2025 Kazi · Built for the world</p>
   </footer>
   
   <script>
-    // Language data
     const languages = [
       { greeting: 'Hello', task: 'Send an email to my team' },
       { greeting: 'Hola', task: 'Envía un correo a mi equipo' },
@@ -748,7 +759,6 @@
     
     let activeIndex = 0;
     
-    // Generate waveform bars
     const waveform = document.getElementById('waveform');
     for (let i = 0; i < 20; i++) {
       const bar = document.createElement('div');
@@ -757,11 +767,9 @@
       waveform.appendChild(bar);
     }
     
-    // Rotate languages
     function rotateLanguage() {
       activeIndex = (activeIndex + 1) % languages.length;
       
-      // Update transcription
       const transcription = document.getElementById('transcription');
       transcription.style.opacity = '0';
       
@@ -770,7 +778,6 @@
         transcription.style.opacity = '1';
       }, 200);
       
-      // Update tags
       const tags = document.querySelectorAll('.language-tag');
       tags.forEach((tag, i) => {
         if (i === activeIndex) {
@@ -783,7 +790,6 @@
     
     setInterval(rotateLanguage, 3000);
     
-    // Form submission
     async function handleSubmit(e) {
       e.preventDefault();
       const input = e.target.querySelector('input');
@@ -815,21 +821,6 @@
         button.disabled = false;
       }
     }
-    
-    // Smooth scroll for CTA buttons
-    document.querySelectorAll('.cta-button').forEach(btn => {
-      if (!btn.type || btn.type !== 'submit') {
-        btn.addEventListener('click', () => {
-          document.querySelector('.email-form input').scrollIntoView({ 
-            behavior: 'smooth',
-            block: 'center'
-          });
-          setTimeout(() => {
-            document.querySelector('.email-form input').focus();
-          }, 500);
-        });
-      }
-    });
   </script>
 </body>
 </html>
