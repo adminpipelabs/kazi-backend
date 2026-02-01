@@ -2,11 +2,12 @@ from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 import httpx
 import json
 import asyncio
+import asyncpg
 
 app = FastAPI(title="Kazi API")
 
@@ -22,12 +23,36 @@ WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID")
 WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "kazi_verify")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-waitlist = []
-reminders = {}
+db_pool = None
 
 class WaitlistSignup(BaseModel):
     email: str
+
+@app.on_event("startup")
+async def startup():
+    global db_pool
+    db_pool = await asyncpg.create_pool(DATABASE_URL)
+    async with db_pool.acquire() as conn:
+        await conn.execute('''
+            CREATE TABLE IF NOT EXISTS reminders (
+                id SERIAL PRIMARY KEY,
+                phone TEXT NOT NULL,
+                task TEXT NOT NULL,
+                remind_at TIMESTAMP NOT NULL,
+                sent BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        ''')
+        await conn.execute('''
+            CREATE TABLE IF NOT EXISTS waitlist (
+                id SERIAL PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+            )
+        ''')
+    asyncio.create_task(reminder_loop())
 
 @app.get("/", response_class=HTMLResponse)
 async def root():
@@ -92,13 +117,17 @@ async def process_text(phone: str, text: str):
         await send_message(phone, "👋 *I'm Kazi!*\n\nSend me a voice or text to set reminders.\n\n*Try:*\n• \"Remind me to call mom at 5pm\"\n• \"Meeting tomorrow at 9am\"\n\n*Commands:*\n• \"list\" - see reminders\n\nI understand 99+ languages! 🌍")
         return
     if text_lower in ["list", "reminders", "my reminders"]:
-        user_r = [r for r in reminders.values() if r["phone"] == phone and not r["sent"]]
-        if not user_r:
+        async with db_pool.acquire() as conn:
+            rows = await conn.fetch(
+                "SELECT task, remind_at FROM reminders WHERE phone = $1 AND sent = FALSE ORDER BY remind_at",
+                phone
+            )
+        if not rows:
             await send_message(phone, "You have no upcoming reminders.")
         else:
             lines = ["📋 *Your reminders:*\n"]
-            for r in sorted(user_r, key=lambda x: x["remind_at"]):
-                lines.append(f"• {r['task']} — {r['remind_at']}")
+            for r in rows:
+                lines.append(f"• {r['task']} — {r['remind_at'].strftime('%b %d, %I:%M %p')}")
             await send_message(phone, "\n".join(lines))
         return
     try:
@@ -117,9 +146,13 @@ async def process_text(phone: str, text: str):
             task = intent.get("task")
             time_str = intent.get("time")
             if task and time_str:
-                rid = f"{phone}_{int(now.timestamp())}"
-                reminders[rid] = {"id": rid, "phone": phone, "task": task, "remind_at": time_str, "sent": False}
-                await send_message(phone, f"✅ I'll remind you to *{task}* at {time_str}")
+                remind_at = datetime.fromisoformat(time_str.replace("Z", "+00:00").replace("+00:00", ""))
+                async with db_pool.acquire() as conn:
+                    await conn.execute(
+                        "INSERT INTO reminders (phone, task, remind_at) VALUES ($1, $2, $3)",
+                        phone, task, remind_at
+                    )
+                await send_message(phone, f"✅ I'll remind you to *{task}* on {remind_at.strftime('%b %d at %I:%M %p')}")
             elif task:
                 await send_message(phone, f"Got it: *{task}*\n\nWhen should I remind you?")
             else:
@@ -139,29 +172,36 @@ async def send_message(phone: str, text: str):
 
 async def reminder_loop():
     while True:
-        now = datetime.utcnow()
-        for rid, r in list(reminders.items()):
-            if r["sent"]:
-                continue
-            try:
-                remind_time = datetime.fromisoformat(r["remind_at"].replace("Z", "+00:00").replace("+00:00", ""))
-                if now >= remind_time:
+        try:
+            now = datetime.utcnow()
+            async with db_pool.acquire() as conn:
+                rows = await conn.fetch(
+                    "SELECT id, phone, task FROM reminders WHERE sent = FALSE AND remind_at <= $1",
+                    now
+                )
+                for r in rows:
                     await send_message(r["phone"], f"⏰ *Reminder:* {r['task']}")
-                    r["sent"] = True
-            except:
-                pass
+                    await conn.execute("UPDATE reminders SET sent = TRUE WHERE id = $1", r["id"])
+        except Exception as e:
+            print(f"Reminder loop error: {e}")
         await asyncio.sleep(30)
-
-@app.on_event("startup")
-async def startup():
-    asyncio.create_task(reminder_loop())
 
 @app.post("/api/waitlist")
 async def join_waitlist(signup: WaitlistSignup):
-    if signup.email not in waitlist:
-        waitlist.append(signup.email)
-    return {"status": "ok", "count": len(waitlist)}
+    try:
+        async with db_pool.acquire() as conn:
+            await conn.execute(
+                "INSERT INTO waitlist (email) VALUES ($1) ON CONFLICT DO NOTHING",
+                signup.email
+            )
+            count = await conn.fetchval("SELECT COUNT(*) FROM waitlist")
+        return {"status": "ok", "count": count}
+    except Exception as e:
+        print(f"Waitlist error: {e}")
+        return {"status": "ok", "count": 0}
 
 @app.get("/api/waitlist/count")
 async def get_waitlist_count():
-    return {"count": len(waitlist) + 500}
+    async with db_pool.acquire() as conn:
+        count = await conn.fetchval("SELECT COUNT(*) FROM waitlist")
+    return {"count": count + 500}
