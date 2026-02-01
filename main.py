@@ -7,7 +7,8 @@ import os
 import httpx
 import json
 import asyncio
-import asyncpg
+import psycopg
+from psycopg.rows import dict_row
 
 app = FastAPI(title="Kazi API")
 
@@ -25,17 +26,16 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-db_pool = None
-
 class WaitlistSignup(BaseModel):
     email: str
 
+def get_db():
+    return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+
 @app.on_event("startup")
 async def startup():
-    global db_pool
-    db_pool = await asyncpg.create_pool(DATABASE_URL)
-    async with db_pool.acquire() as conn:
-        await conn.execute('''
+    with get_db() as conn:
+        conn.execute('''
             CREATE TABLE IF NOT EXISTS reminders (
                 id SERIAL PRIMARY KEY,
                 phone TEXT NOT NULL,
@@ -45,13 +45,14 @@ async def startup():
                 created_at TIMESTAMP DEFAULT NOW()
             )
         ''')
-        await conn.execute('''
+        conn.execute('''
             CREATE TABLE IF NOT EXISTS waitlist (
                 id SERIAL PRIMARY KEY,
                 email TEXT UNIQUE NOT NULL,
                 created_at TIMESTAMP DEFAULT NOW()
             )
         ''')
+        conn.commit()
     asyncio.create_task(reminder_loop())
 
 @app.get("/", response_class=HTMLResponse)
@@ -117,11 +118,11 @@ async def process_text(phone: str, text: str):
         await send_message(phone, "👋 *I'm Kazi!*\n\nSend me a voice or text to set reminders.\n\n*Try:*\n• \"Remind me to call mom at 5pm\"\n• \"Meeting tomorrow at 9am\"\n\n*Commands:*\n• \"list\" - see reminders\n\nI understand 99+ languages! 🌍")
         return
     if text_lower in ["list", "reminders", "my reminders"]:
-        async with db_pool.acquire() as conn:
-            rows = await conn.fetch(
-                "SELECT task, remind_at FROM reminders WHERE phone = $1 AND sent = FALSE ORDER BY remind_at",
-                phone
-            )
+        with get_db() as conn:
+            rows = conn.execute(
+                "SELECT task, remind_at FROM reminders WHERE phone = %s AND sent = FALSE ORDER BY remind_at",
+                (phone,)
+            ).fetchall()
         if not rows:
             await send_message(phone, "You have no upcoming reminders.")
         else:
@@ -147,11 +148,12 @@ async def process_text(phone: str, text: str):
             time_str = intent.get("time")
             if task and time_str:
                 remind_at = datetime.fromisoformat(time_str.replace("Z", "+00:00").replace("+00:00", ""))
-                async with db_pool.acquire() as conn:
-                    await conn.execute(
-                        "INSERT INTO reminders (phone, task, remind_at) VALUES ($1, $2, $3)",
-                        phone, task, remind_at
+                with get_db() as conn:
+                    conn.execute(
+                        "INSERT INTO reminders (phone, task, remind_at) VALUES (%s, %s, %s)",
+                        (phone, task, remind_at)
                     )
+                    conn.commit()
                 await send_message(phone, f"✅ I'll remind you to *{task}* on {remind_at.strftime('%b %d at %I:%M %p')}")
             elif task:
                 await send_message(phone, f"Got it: *{task}*\n\nWhen should I remind you?")
@@ -174,14 +176,15 @@ async def reminder_loop():
     while True:
         try:
             now = datetime.utcnow()
-            async with db_pool.acquire() as conn:
-                rows = await conn.fetch(
-                    "SELECT id, phone, task FROM reminders WHERE sent = FALSE AND remind_at <= $1",
-                    now
-                )
+            with get_db() as conn:
+                rows = conn.execute(
+                    "SELECT id, phone, task FROM reminders WHERE sent = FALSE AND remind_at <= %s",
+                    (now,)
+                ).fetchall()
                 for r in rows:
                     await send_message(r["phone"], f"⏰ *Reminder:* {r['task']}")
-                    await conn.execute("UPDATE reminders SET sent = TRUE WHERE id = $1", r["id"])
+                    conn.execute("UPDATE reminders SET sent = TRUE WHERE id = %s", (r["id"],))
+                    conn.commit()
         except Exception as e:
             print(f"Reminder loop error: {e}")
         await asyncio.sleep(30)
@@ -189,12 +192,13 @@ async def reminder_loop():
 @app.post("/api/waitlist")
 async def join_waitlist(signup: WaitlistSignup):
     try:
-        async with db_pool.acquire() as conn:
-            await conn.execute(
-                "INSERT INTO waitlist (email) VALUES ($1) ON CONFLICT DO NOTHING",
-                signup.email
+        with get_db() as conn:
+            conn.execute(
+                "INSERT INTO waitlist (email) VALUES (%s) ON CONFLICT DO NOTHING",
+                (signup.email,)
             )
-            count = await conn.fetchval("SELECT COUNT(*) FROM waitlist")
+            conn.commit()
+            count = conn.execute("SELECT COUNT(*) as c FROM waitlist").fetchone()["c"]
         return {"status": "ok", "count": count}
     except Exception as e:
         print(f"Waitlist error: {e}")
@@ -202,6 +206,6 @@ async def join_waitlist(signup: WaitlistSignup):
 
 @app.get("/api/waitlist/count")
 async def get_waitlist_count():
-    async with db_pool.acquire() as conn:
-        count = await conn.fetchval("SELECT COUNT(*) FROM waitlist")
+    with get_db() as conn:
+        count = conn.execute("SELECT COUNT(*) as c FROM waitlist").fetchone()["c"]
     return {"count": count + 500}
