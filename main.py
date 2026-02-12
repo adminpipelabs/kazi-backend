@@ -108,6 +108,24 @@ async def root():
     return FileResponse("index.html")
 
 
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy():
+    """Serve the privacy policy page."""
+    return FileResponse("privacy.html")
+
+
+@app.get("/terms", response_class=HTMLResponse)
+async def terms():
+    """Serve the terms of service page."""
+    return FileResponse("terms.html")
+
+
+@app.get("/cookies", response_class=HTMLResponse)
+async def cookies():
+    """Serve the cookie policy page."""
+    return FileResponse("cookies.html")
+
+
 @app.get("/api")
 async def api_status():
     return {
