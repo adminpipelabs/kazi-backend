@@ -6,7 +6,8 @@ Kazi - Voice-first AI Agent via WhatsApp
 import os
 import httpx
 from fastapi import FastAPI, Request, Form
-from fastapi.responses import Response
+from fastapi.responses import Response, HTMLResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 import anthropic
 from openai import OpenAI
 
@@ -101,8 +102,14 @@ async def send_whatsapp_message(to: str, body: str):
     return response.json()
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def root():
+    """Serve the landing page."""
+    return FileResponse("index.html")
+
+
+@app.get("/api")
+async def api_status():
     return {
         "name": "Kazi",
         "tagline": "Your voice. Your agent. Any language.",
