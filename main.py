@@ -79,7 +79,7 @@ TZ_MAP = {
     "nigeria": "Africa/Lagos", "lagos": "Africa/Lagos",
     "kenya": "Africa/Nairobi", "nairobi": "Africa/Nairobi",
     "egypt": "Africa/Cairo", "cairo": "Africa/Cairo",
-    "utc": "UTC", "gmt+0": "UTC",
+    "utc": "UTC",
 }
 
 WELCOME_MSG = """Hi! I'm Kazi, your AI assistant on WhatsApp. I help you get things done with voice and text.
@@ -125,6 +125,10 @@ async def init_db():
         async with db_pool.acquire() as conn:
             await conn.execute("CREATE TABLE IF NOT EXISTS reminders (id SERIAL PRIMARY KEY, user_phone VARCHAR(50) NOT NULL, task TEXT NOT NULL, remind_at TIMESTAMP NOT NULL, sent BOOLEAN DEFAULT FALSE)")
             await conn.execute("CREATE TABLE IF NOT EXISTS users (phone VARCHAR(50) PRIMARY KEY, timezone VARCHAR(50) DEFAULT NULL, welcomed BOOLEAN DEFAULT FALSE)")
+            try:
+                await conn.execute("ALTER TABLE users ADD COLUMN welcomed BOOLEAN DEFAULT FALSE")
+            except:
+                pass
         print("DB ready")
 
 async def close_db():
@@ -162,13 +166,6 @@ def resolve_tz(text):
         return text
     except:
         pass
-    if "/" in text:
-        try:
-            formatted = "/".join(word.title() for word in text.split("/"))
-            ZoneInfo(formatted)
-            return formatted
-        except:
-            pass
     return None
 
 def get_local_time(tz_name):
@@ -236,22 +233,19 @@ async def get_response(user_message, user_phone):
     user_tz, welcomed = await get_user(user_phone)
     msg_lower = user_message.lower().strip()
     
-    # New user - show welcome
     if not welcomed:
         await set_user_welcomed(user_phone)
         return WELCOME_MSG + "\n\n" + TIMEZONE_MSG
     
-    # No timezone yet - try to parse their response as timezone
     if user_tz is None:
         resolved = resolve_tz(msg_lower)
         if resolved:
             await set_user_tz(user_phone, resolved)
             local = get_local_time(resolved)
-            return f"✅ Got it! Timezone set to {resolved}.\nYour local time: {local.strftime('%H:%M')}\n\nNow, how can I help you?"
+            return f"✅ Got it! Timezone set to {resolved}.\nYour local time: {local.strftime('%H:%M')}\n\nHow can I help you?"
         else:
-            return f"Hmm, I didn't recognize '{user_message}'. Try a major city like 'London', 'New York', 'Tokyo', or country like 'Germany', 'Sweden'."
+            return f"Hmm, I didn't recognize '{user_message}'. Try a city like 'London', 'New York', 'Tokyo', or country like 'Germany', 'Sweden'."
     
-    # Check if user wants to change timezone
     if "timezone" in msg_lower or "time zone" in msg_lower or "change tz" in msg_lower:
         words = msg_lower.replace("set", "").replace("change", "").replace("my", "").replace("timezone", "").replace("time zone", "").replace("to", "").replace("tz", "").strip()
         resolved = resolve_tz(words)
@@ -259,9 +253,8 @@ async def get_response(user_message, user_phone):
             await set_user_tz(user_phone, resolved)
             local = get_local_time(resolved)
             return f"✅ Timezone updated to {resolved}!\nYour local time: {local.strftime('%H:%M')}"
-        return "Tell me your city or country to set timezone. Like: 'set timezone to Stockholm'"
+        return "Tell me your city or country. Like: 'set timezone to Stockholm'"
     
-    # Normal conversation
     now_local = get_local_time(user_tz)
     current_time = now_local.strftime("%Y-%m-%d %H:%M")
     
