@@ -116,7 +116,7 @@ INVITE FRIENDS: If user wants to invite or share Kazi, give them this message to
 
 Join here: https://wa.me/15734125273?text=Hi%20Kazi"
 
-TIMEZONE: If user wants to change timezone, they can say their city or country name."""
+TIMEZONE: If user mentions their location or timezone, DO NOT handle it yourself. Just say "Let me update your timezone" - the system will handle it."""
 
 async def init_db():
     global db_pool
@@ -237,23 +237,25 @@ async def get_response(user_message, user_phone):
         await set_user_welcomed(user_phone)
         return WELCOME_MSG + "\n\n" + TIMEZONE_MSG
     
-    if user_tz is None:
-        resolved = resolve_tz(msg_lower)
+    # Check for timezone in message - expanded triggers
+    tz_triggers = ["timezone", "time zone", "change tz", "my time is", "i'm in", "im in", "i am in", "i live in", "living in", "based in", "my time", "set it to", "cst", "est", "pst", "gmt", "cet"]
+    if user_tz is None or any(trigger in msg_lower for trigger in tz_triggers):
+        # Try to find timezone in message
+        words = msg_lower
+        for remove in ["set", "change", "my", "timezone", "time zone", "to", "tz", "is", "i'm", "im", "i am", "i live", "living", "based", "in", "the", "please", "can you", "it"]:
+            words = words.replace(remove, " ")
+        words = " ".join(words.split()).strip()
+        
+        resolved = resolve_tz(words)
+        if not resolved:
+            resolved = resolve_tz(msg_lower)
+        
         if resolved:
             await set_user_tz(user_phone, resolved)
             local = get_local_time(resolved)
             return f"✅ Got it! Timezone set to {resolved}.\nYour local time: {local.strftime('%H:%M')}\n\nHow can I help you?"
-        else:
-            return f"Hmm, I didn't recognize '{user_message}'. Try a city like 'London', 'New York', 'Tokyo', or country like 'Germany', 'Sweden'."
-    
-    if "timezone" in msg_lower or "time zone" in msg_lower or "change tz" in msg_lower:
-        words = msg_lower.replace("set", "").replace("change", "").replace("my", "").replace("timezone", "").replace("time zone", "").replace("to", "").replace("tz", "").strip()
-        resolved = resolve_tz(words)
-        if resolved:
-            await set_user_tz(user_phone, resolved)
-            local = get_local_time(resolved)
-            return f"✅ Timezone updated to {resolved}!\nYour local time: {local.strftime('%H:%M')}"
-        return "Tell me your city or country. Like: 'set timezone to Stockholm'"
+        elif user_tz is None:
+            return f"Hmm, I didn't recognize that. Try a city like 'London', 'New York', 'Tokyo', or 'CST', 'EST', 'CET'."
     
     now_local = get_local_time(user_tz)
     current_time = now_local.strftime("%Y-%m-%d %H:%M")
