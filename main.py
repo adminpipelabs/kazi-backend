@@ -21,26 +21,90 @@ claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
 db_pool = None
 
-TZ_ALIASES = {
-    "cst": "America/Chicago", "central": "America/Chicago", "chicago": "America/Chicago",
-    "est": "America/New_York", "eastern": "America/New_York", "new york": "America/New_York",
-    "pst": "America/Los_Angeles", "pacific": "America/Los_Angeles", "la": "America/Los_Angeles",
-    "mst": "America/Denver", "mountain": "America/Denver", "denver": "America/Denver",
-    "gmt": "Europe/London", "uk": "Europe/London", "london": "Europe/London",
-    "cet": "Europe/Paris", "paris": "Europe/Paris", "berlin": "Europe/Berlin",
-    "stockholm": "Europe/Stockholm", "sweden": "Europe/Stockholm",
-    "amsterdam": "Europe/Amsterdam", "netherlands": "Europe/Amsterdam",
-    "tokyo": "Asia/Tokyo", "japan": "Asia/Tokyo", "jst": "Asia/Tokyo",
-    "sydney": "Australia/Sydney", "australia": "Australia/Sydney", "aest": "Australia/Sydney",
-    "dubai": "Asia/Dubai", "uae": "Asia/Dubai",
-    "singapore": "Asia/Singapore", "sgt": "Asia/Singapore",
-    "hong kong": "Asia/Hong_Kong", "hkt": "Asia/Hong_Kong",
-    "mumbai": "Asia/Kolkata", "india": "Asia/Kolkata", "ist": "Asia/Kolkata",
-    "beijing": "Asia/Shanghai", "china": "Asia/Shanghai",
-    "utc": "UTC",
+TZ_MAP = {
+    "usa": "America/Chicago", "us": "America/Chicago", "america": "America/New_York",
+    "new york": "America/New_York", "nyc": "America/New_York", "ny": "America/New_York",
+    "los angeles": "America/Los_Angeles", "la": "America/Los_Angeles", "california": "America/Los_Angeles",
+    "chicago": "America/Chicago", "texas": "America/Chicago", "houston": "America/Chicago", "dallas": "America/Chicago",
+    "denver": "America/Denver", "phoenix": "America/Phoenix", "seattle": "America/Los_Angeles",
+    "miami": "America/New_York", "boston": "America/New_York", "atlanta": "America/New_York",
+    "cst": "America/Chicago", "central": "America/Chicago",
+    "est": "America/New_York", "eastern": "America/New_York",
+    "pst": "America/Los_Angeles", "pacific": "America/Los_Angeles",
+    "mst": "America/Denver", "mountain": "America/Denver",
+    "uk": "Europe/London", "england": "Europe/London", "london": "Europe/London", "britain": "Europe/London",
+    "gmt": "Europe/London", "bst": "Europe/London",
+    "germany": "Europe/Berlin", "berlin": "Europe/Berlin", "munich": "Europe/Berlin", "frankfurt": "Europe/Berlin",
+    "france": "Europe/Paris", "paris": "Europe/Paris",
+    "spain": "Europe/Madrid", "madrid": "Europe/Madrid", "barcelona": "Europe/Madrid",
+    "italy": "Europe/Rome", "rome": "Europe/Rome", "milan": "Europe/Rome",
+    "netherlands": "Europe/Amsterdam", "amsterdam": "Europe/Amsterdam", "holland": "Europe/Amsterdam",
+    "belgium": "Europe/Brussels", "brussels": "Europe/Brussels",
+    "sweden": "Europe/Stockholm", "stockholm": "Europe/Stockholm",
+    "norway": "Europe/Oslo", "oslo": "Europe/Oslo",
+    "denmark": "Europe/Copenhagen", "copenhagen": "Europe/Copenhagen",
+    "finland": "Europe/Helsinki", "helsinki": "Europe/Helsinki",
+    "poland": "Europe/Warsaw", "warsaw": "Europe/Warsaw",
+    "austria": "Europe/Vienna", "vienna": "Europe/Vienna",
+    "switzerland": "Europe/Zurich", "zurich": "Europe/Zurich", "geneva": "Europe/Zurich",
+    "portugal": "Europe/Lisbon", "lisbon": "Europe/Lisbon",
+    "ireland": "Europe/Dublin", "dublin": "Europe/Dublin",
+    "greece": "Europe/Athens", "athens": "Europe/Athens",
+    "cet": "Europe/Paris", "cest": "Europe/Paris",
+    "japan": "Asia/Tokyo", "tokyo": "Asia/Tokyo", "jst": "Asia/Tokyo",
+    "china": "Asia/Shanghai", "shanghai": "Asia/Shanghai", "beijing": "Asia/Shanghai",
+    "hong kong": "Asia/Hong_Kong", "hongkong": "Asia/Hong_Kong",
+    "singapore": "Asia/Singapore",
+    "korea": "Asia/Seoul", "seoul": "Asia/Seoul", "south korea": "Asia/Seoul",
+    "india": "Asia/Kolkata", "mumbai": "Asia/Kolkata", "delhi": "Asia/Kolkata", "bangalore": "Asia/Kolkata", "ist": "Asia/Kolkata",
+    "thailand": "Asia/Bangkok", "bangkok": "Asia/Bangkok",
+    "vietnam": "Asia/Ho_Chi_Minh", "hanoi": "Asia/Ho_Chi_Minh",
+    "indonesia": "Asia/Jakarta", "jakarta": "Asia/Jakarta",
+    "malaysia": "Asia/Kuala_Lumpur", "kuala lumpur": "Asia/Kuala_Lumpur",
+    "philippines": "Asia/Manila", "manila": "Asia/Manila",
+    "taiwan": "Asia/Taipei", "taipei": "Asia/Taipei",
+    "uae": "Asia/Dubai", "dubai": "Asia/Dubai", "abu dhabi": "Asia/Dubai",
+    "saudi": "Asia/Riyadh", "saudi arabia": "Asia/Riyadh", "riyadh": "Asia/Riyadh",
+    "israel": "Asia/Jerusalem", "tel aviv": "Asia/Jerusalem", "jerusalem": "Asia/Jerusalem",
+    "turkey": "Europe/Istanbul", "istanbul": "Europe/Istanbul",
+    "russia": "Europe/Moscow", "moscow": "Europe/Moscow",
+    "australia": "Australia/Sydney", "sydney": "Australia/Sydney", "melbourne": "Australia/Melbourne",
+    "brisbane": "Australia/Brisbane", "perth": "Australia/Perth", "aest": "Australia/Sydney",
+    "new zealand": "Pacific/Auckland", "auckland": "Pacific/Auckland", "nz": "Pacific/Auckland",
+    "brazil": "America/Sao_Paulo", "sao paulo": "America/Sao_Paulo", "rio": "America/Sao_Paulo",
+    "mexico": "America/Mexico_City", "mexico city": "America/Mexico_City",
+    "canada": "America/Toronto", "toronto": "America/Toronto", "vancouver": "America/Vancouver",
+    "argentina": "America/Buenos_Aires", "buenos aires": "America/Buenos_Aires",
+    "south africa": "Africa/Johannesburg", "johannesburg": "Africa/Johannesburg",
+    "nigeria": "Africa/Lagos", "lagos": "Africa/Lagos",
+    "kenya": "Africa/Nairobi", "nairobi": "Africa/Nairobi",
+    "egypt": "Africa/Cairo", "cairo": "Africa/Cairo",
+    "utc": "UTC", "gmt+0": "UTC",
 }
 
-KAZI_SYSTEM = """You are Kazi, a helpful AI assistant via WhatsApp. Keep responses short.
+WELCOME_MSG = """Hi! I'm Kazi, your AI assistant on WhatsApp. I help you get things done with voice and text.
+
+I can:
+- Answer questions
+- Set reminders
+- Do calculations & translations
+- Help with daily tasks
+
+I'm designed to be quick and useful - like having a helpful assistant in your pocket!
+
+What would you like help with? 😊"""
+
+TIMEZONE_MSG = """One quick thing - what's your timezone?
+
+Just tell me your city or country, like:
+- "Stockholm"
+- "New York"  
+- "Germany"
+- "Tokyo"
+
+This helps me send reminders at the right time!"""
+
+KAZI_SYSTEM = """You are Kazi, a helpful AI assistant via WhatsApp. Keep responses short and friendly.
 
 YOU CAN SET REMINDERS! When user asks for a reminder, confirm it AND add this at the end:
 REMINDER_JSON:{"task":"call Emma","hour":15,"minute":0}
@@ -52,7 +116,7 @@ INVITE FRIENDS: If user wants to invite or share Kazi, give them this message to
 
 Join here: https://wa.me/15734125273?text=Hi%20Kazi"
 
-TIMEZONE: User can say "set timezone to CET" or "set timezone to Europe/Stockholm" etc."""
+TIMEZONE: If user wants to change timezone, they can say their city or country name."""
 
 async def init_db():
     global db_pool
@@ -60,38 +124,51 @@ async def init_db():
         db_pool = await asyncpg.create_pool(DATABASE_URL)
         async with db_pool.acquire() as conn:
             await conn.execute("CREATE TABLE IF NOT EXISTS reminders (id SERIAL PRIMARY KEY, user_phone VARCHAR(50) NOT NULL, task TEXT NOT NULL, remind_at TIMESTAMP NOT NULL, sent BOOLEAN DEFAULT FALSE)")
-            await conn.execute("CREATE TABLE IF NOT EXISTS users (phone VARCHAR(50) PRIMARY KEY, timezone VARCHAR(50) DEFAULT NULL)")
+            await conn.execute("CREATE TABLE IF NOT EXISTS users (phone VARCHAR(50) PRIMARY KEY, timezone VARCHAR(50) DEFAULT NULL, welcomed BOOLEAN DEFAULT FALSE)")
         print("DB ready")
 
 async def close_db():
     if db_pool:
         await db_pool.close()
 
-async def get_user_tz(phone):
+async def get_user(phone):
     if db_pool:
         async with db_pool.acquire() as conn:
-            row = await conn.fetchrow("SELECT timezone FROM users WHERE phone = $1", phone)
-            if row and row["timezone"]:
-                return row["timezone"]
-            await conn.execute("INSERT INTO users (phone) VALUES ($1) ON CONFLICT DO NOTHING", phone)
-    return None
+            row = await conn.fetchrow("SELECT timezone, welcomed FROM users WHERE phone = $1", phone)
+            if row:
+                return row["timezone"], row["welcomed"]
+            await conn.execute("INSERT INTO users (phone, welcomed) VALUES ($1, FALSE) ON CONFLICT DO NOTHING", phone)
+    return None, False
 
 async def set_user_tz(phone, tz_name):
     if db_pool:
         async with db_pool.acquire() as conn:
-            await conn.execute("INSERT INTO users (phone, timezone) VALUES ($1, $2) ON CONFLICT (phone) DO UPDATE SET timezone = $2", phone, tz_name)
+            await conn.execute("UPDATE users SET timezone = $1, welcomed = TRUE WHERE phone = $2", tz_name, phone)
+
+async def set_user_welcomed(phone):
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            await conn.execute("UPDATE users SET welcomed = TRUE WHERE phone = $1", phone)
 
 def resolve_tz(text):
     text = text.lower().strip()
-    if text in TZ_ALIASES:
-        return TZ_ALIASES[text]
+    if text in TZ_MAP:
+        return TZ_MAP[text]
+    for key, tz in TZ_MAP.items():
+        if key in text or text in key:
+            return tz
     try:
         ZoneInfo(text)
         return text
     except:
-        for alias, tz in TZ_ALIASES.items():
-            if alias in text:
-                return tz
+        pass
+    if "/" in text:
+        try:
+            formatted = "/".join(word.title() for word in text.split("/"))
+            ZoneInfo(formatted)
+            return formatted
+        except:
+            pass
     return None
 
 def get_local_time(tz_name):
@@ -153,26 +230,38 @@ async def save_reminder(user_phone, task, hour, minute, tz_name):
         remind_utc = remind_local.astimezone(timezone.utc).replace(tzinfo=None)
         async with db_pool.acquire() as conn:
             await conn.execute("INSERT INTO reminders (user_phone, task, remind_at) VALUES ($1, $2, $3)", user_phone, task, remind_utc)
-        print(f"Saved: {task} at {remind_utc} UTC (local: {remind_local})")
+        print(f"Saved: {task} at {remind_utc} UTC")
 
 async def get_response(user_message, user_phone):
-    user_tz = await get_user_tz(user_phone)
-    msg_lower = user_message.lower()
+    user_tz, welcomed = await get_user(user_phone)
+    msg_lower = user_message.lower().strip()
     
-    if "timezone" in msg_lower or "time zone" in msg_lower or msg_lower.startswith("set tz"):
-        words = msg_lower.replace("set", "").replace("timezone", "").replace("time zone", "").replace("to", "").replace("tz", "").replace("my", "").split()
-        for word in words:
-            resolved = resolve_tz(word)
-            if resolved:
-                await set_user_tz(user_phone, resolved)
-                local = get_local_time(resolved)
-                return f"✅ Timezone set to {resolved}!\nYour local time: {local.strftime('%H:%M')}"
-        return "Couldn't find that timezone. Try: CST, EST, PST, GMT, CET, or Europe/Stockholm, Asia/Tokyo etc."
+    # New user - show welcome
+    if not welcomed:
+        await set_user_welcomed(user_phone)
+        return WELCOME_MSG + "\n\n" + TIMEZONE_MSG
     
+    # No timezone yet - try to parse their response as timezone
     if user_tz is None:
-        await set_user_tz(user_phone, "UTC")
-        return "Welcome to Kazi! 👋\n\nWhat's your timezone? Examples:\n• set timezone to CST\n• set timezone to CET\n• set timezone to Europe/Stockholm\n\nThis helps me send reminders at the right time!"
+        resolved = resolve_tz(msg_lower)
+        if resolved:
+            await set_user_tz(user_phone, resolved)
+            local = get_local_time(resolved)
+            return f"✅ Got it! Timezone set to {resolved}.\nYour local time: {local.strftime('%H:%M')}\n\nNow, how can I help you?"
+        else:
+            return f"Hmm, I didn't recognize '{user_message}'. Try a major city like 'London', 'New York', 'Tokyo', or country like 'Germany', 'Sweden'."
     
+    # Check if user wants to change timezone
+    if "timezone" in msg_lower or "time zone" in msg_lower or "change tz" in msg_lower:
+        words = msg_lower.replace("set", "").replace("change", "").replace("my", "").replace("timezone", "").replace("time zone", "").replace("to", "").replace("tz", "").strip()
+        resolved = resolve_tz(words)
+        if resolved:
+            await set_user_tz(user_phone, resolved)
+            local = get_local_time(resolved)
+            return f"✅ Timezone updated to {resolved}!\nYour local time: {local.strftime('%H:%M')}"
+        return "Tell me your city or country to set timezone. Like: 'set timezone to Stockholm'"
+    
+    # Normal conversation
     now_local = get_local_time(user_tz)
     current_time = now_local.strftime("%Y-%m-%d %H:%M")
     
