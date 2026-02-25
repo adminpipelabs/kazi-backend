@@ -1,191 +1,134 @@
 """
-Kazi - Voice-first AI Agent via WhatsApp
-"Your voice. Your agent. Any language."
+Pipe Labs Dashboard - Main FastAPI Application
 """
-
 import os
-import httpx
-from fastapi import FastAPI, Request, Form
-from fastapi.responses import Response, HTMLResponse, FileResponse
-from fastapi.staticfiles import StaticFiles
-import anthropic
-from openai import OpenAI
+import json
+from contextlib import asynccontextmanager
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-# Config
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-# Clients
-claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
-
-app = FastAPI(title="Kazi", description="Voice-first AI Agent")
-
-# System prompt for Kazi
-KAZI_SYSTEM = """You are Kazi, a helpful AI assistant that works via WhatsApp voice and text.
-
-Your name "Kazi" means "work" in Swahili. You help people get things done through simple voice commands.
-
-Key traits:
-- Concise: Keep responses short (WhatsApp-friendly, under 300 chars when possible)
-- Helpful: Actually do things, don't just explain
-- Multilingual: Respond in the same language the user speaks
-- Action-oriented: Focus on execution, not theory
-
-You can help with:
-- Answering questions
-- Web searches
-- Reminders and tasks
-- Calculations
-- Translations
-- General assistance
-
-Keep it simple. Keep it useful. Get things done."""
+from app.core.database import engine, Base
+from app.api.admin import router as admin_router
+from app.api.agent import router as agent_router
+from app.api.auth import router as auth_router
 
 
-async def transcribe_audio(media_url: str) -> str:
-    """Download and transcribe audio using Whisper."""
+# Parse CORS origins from environment
+def get_cors_origins():
+    cors_env = os.getenv("CORS_ORIGINS", "")
+    if not cors_env:
+        return ["*"]
     
-    async with httpx.AsyncClient() as client:
-        response = await client.get(
-            media_url,
-            auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
-        )
-        audio_data = response.content
+    # Try parsing as JSON array first
+    try:
+        origins = json.loads(cors_env)
+        if isinstance(origins, list):
+            return origins
+    except json.JSONDecodeError:
+        pass
     
-    temp_path = "/tmp/voice_message.ogg"
-    with open(temp_path, "wb") as f:
-        f.write(audio_data)
+    # Fall back to comma-separated
+    return [origin.strip() for origin in cors_env.split(",") if origin.strip()]
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
     
-    with open(temp_path, "rb") as audio_file:
-        transcript = openai_client.audio.transcriptions.create(
-            model="whisper-1",
-            file=audio_file
-        )
+    # Auto-setup admin wallet on startup (one-time, safe to run multiple times)
+    try:
+        from app.core.database import AsyncSessionLocal
+        from app.models.user import User
+        from web3 import Web3
+        from sqlalchemy import select
+        
+        ADMIN_WALLET = "0x61b6EF3769c88332629fA657508724a912b79101"
+        async with AsyncSessionLocal() as db:
+            wallet = Web3.to_checksum_address(ADMIN_WALLET)
+            result = await db.execute(select(User).where(User.wallet_address == wallet))
+            user = result.scalar_one_or_none()
+            
+            if not user or user.role != "admin":
+                if user:
+                    user.role = "admin"
+                    user.is_active = True
+                else:
+                    user = User(wallet_address=wallet, role="admin", is_active=True)
+                    db.add(user)
+                await db.commit()
+                print(f"✅ Admin wallet set: {wallet}")
+            else:
+                print(f"✅ Admin wallet already set: {wallet}")
+    except Exception as e:
+        print(f"⚠️ Admin setup warning: {e}")
     
-    return transcript.text
+    yield
+    await engine.dispose()
 
 
-async def get_kazi_response(user_message: str, user_phone: str) -> str:
-    """Get response from Claude."""
-    
-    response = claude.messages.create(
-        model="claude-sonnet-4-20250514",
-        max_tokens=500,
-        system=KAZI_SYSTEM,
-        messages=[
-            {"role": "user", "content": user_message}
-        ]
-    )
-    
-    return response.content[0].text
+app = FastAPI(
+    title="Pipe Labs Dashboard API",
+    version="0.1.0",
+    lifespan=lifespan,
+)
 
+# Get CORS origins from environment
+cors_origins = get_cors_origins()
+print(f"🌐 CORS origins: {cors_origins}")
 
-async def send_whatsapp_message(to: str, body: str):
-    """Send WhatsApp message via Twilio."""
-    
-    url = f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json"
-    
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            url,
-            auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN),
-            data={
-                "From": "whatsapp:+15734125273",
-                "To": to,
-                "Body": body
-            }
-        )
-    
-    return response.json()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-
-@app.get("/", response_class=HTMLResponse)
-async def root():
-    """Serve the landing page."""
-    return FileResponse("index.html")
-
-
-@app.get("/privacy", response_class=HTMLResponse)
-async def privacy():
-    """Serve the privacy policy page."""
-    return FileResponse("privacy.html")
-
-
-@app.get("/terms", response_class=HTMLResponse)
-async def terms():
-    """Serve the terms of service page."""
-    return FileResponse("terms.html")
-
-
-@app.get("/cookies", response_class=HTMLResponse)
-async def cookies():
-    """Serve the cookie policy page."""
-    return FileResponse("cookies.html")
-
-
-@app.get("/api")
-async def api_status():
-    return {
-        "name": "Kazi",
-        "tagline": "Your voice. Your agent. Any language.",
-        "status": "running",
-        "endpoints": {
-            "webhook": "/webhook",
-            "health": "/health"
-        }
-    }
+app.include_router(admin_router, prefix="/api/admin", tags=["Admin"])
+app.include_router(agent_router, prefix="/api/agent", tags=["Agent"])
+app.include_router(auth_router, prefix="/api/auth", tags=["Auth"])
 
 
 @app.get("/health")
-async def health():
-    return {"status": "healthy"}
+async def health_check():
+    return {"status": "ok"}
 
 
-@app.post("/webhook")
-async def whatsapp_webhook(
-    request: Request,
-    From: str = Form(...),
-    Body: str = Form(default=""),
-    NumMedia: str = Form(default="0"),
-    MediaUrl0: str = Form(default=None),
-    MediaContentType0: str = Form(default=None)
-):
-    """Handle incoming WhatsApp messages (text and voice)."""
-    
-    user_phone = From
-    
-    print(f"📱 Message from {user_phone}")
-    print(f"   Text: {Body}")
-    print(f"   Media: {NumMedia}")
-    
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {
+        "message": "Pipe Labs Dashboard API",
+        "docs": "/docs",
+        "health": "/health"
+    }
+
+
+@app.post("/force-admin-setup")
+async def force_admin_setup():
+    """Force admin setup - call this to set admin wallet"""
     try:
-        if int(NumMedia) > 0 and MediaContentType0 and "audio" in MediaContentType0:
-            print(f"🎤 Voice message detected: {MediaContentType0}")
-            user_message = await transcribe_audio(MediaUrl0)
-            print(f"📝 Transcribed: {user_message}")
-        else:
-            user_message = Body
+        from app.core.database import AsyncSessionLocal
+        from app.models.user import User
+        from web3 import Web3
+        from sqlalchemy import select
         
-        if not user_message.strip():
-            return Response(content="", media_type="text/xml")
-        
-        kazi_response = await get_kazi_response(user_message, user_phone)
-        print(f"🤖 Kazi: {kazi_response}")
-        
-        await send_whatsapp_message(user_phone, kazi_response)
-        
-        return Response(content="<Response></Response>", media_type="text/xml")
-        
+        ADMIN_WALLET = "0x61b6EF3769c88332629fA657508724a912b79101"
+        async with AsyncSessionLocal() as db:
+            wallet = Web3.to_checksum_address(ADMIN_WALLET)
+            result = await db.execute(select(User).where(User.wallet_address == wallet))
+            user = result.scalar_one_or_none()
+            
+            if not user:
+                user = User(wallet_address=wallet, role="admin", is_active=True)
+                db.add(user)
+                await db.commit()
+                return {"message": "Admin created", "wallet": wallet, "role": "admin"}
+            else:
+                user.role = "admin"
+                user.is_active = True
+                await db.commit()
+                return {"message": "Admin updated", "wallet": wallet, "role": user.role, "was": "updated"}
     except Exception as e:
-        print(f"❌ Error: {e}")
-        error_msg = "Sorry, something went wrong. Please try again."
-        await send_whatsapp_message(user_phone, error_msg)
-        return Response(content="<Response></Response>", media_type="text/xml")
-
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
+        return {"error": str(e)}
