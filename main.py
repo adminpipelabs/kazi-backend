@@ -208,9 +208,9 @@ app = FastAPI(title="Kazi", lifespan=lifespan)
 
 async def transcribe_audio(media_url):
     print(f"Transcribing audio: {media_url}")
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(follow_redirects=True) as client:
         resp = await client.get(media_url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN))
-        print(f"Audio download status: {resp.status_code}")
+        print(f"Audio download status: {resp.status_code}, size: {len(resp.content)}")
     with open("/tmp/voice.ogg", "wb") as f:
         f.write(resp.content)
     with open("/tmp/voice.ogg", "rb") as f:
