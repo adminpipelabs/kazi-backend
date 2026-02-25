@@ -2,6 +2,7 @@ import os
 import json
 import httpx
 import asyncio
+import traceback
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 from contextlib import asynccontextmanager
@@ -206,12 +207,15 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Kazi", lifespan=lifespan)
 
 async def transcribe_audio(media_url):
+    print(f"Transcribing audio: {media_url}")
     async with httpx.AsyncClient() as client:
         resp = await client.get(media_url, auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN))
+        print(f"Audio download status: {resp.status_code}")
     with open("/tmp/voice.ogg", "wb") as f:
         f.write(resp.content)
     with open("/tmp/voice.ogg", "rb") as f:
         transcript = openai_client.audio.transcriptions.create(model="whisper-1", file=f)
+    print(f"Transcription: {transcript.text}")
     return transcript.text
 
 async def save_reminder(user_phone, task, hour, minute, tz_name):
@@ -237,10 +241,8 @@ async def get_response(user_message, user_phone):
         await set_user_welcomed(user_phone)
         return WELCOME_MSG + "\n\n" + TIMEZONE_MSG
     
-    # Check for timezone in message - expanded triggers
     tz_triggers = ["timezone", "time zone", "change tz", "my time is", "i'm in", "im in", "i am in", "i live in", "living in", "based in", "my time", "set it to", "cst", "est", "pst", "gmt", "cet"]
     if user_tz is None or any(trigger in msg_lower for trigger in tz_triggers):
-        # Try to find timezone in message
         words = msg_lower
         for remove in ["set", "change", "my", "timezone", "time zone", "to", "tz", "is", "i'm", "im", "i am", "i live", "living", "based", "in", "the", "please", "can you", "it"]:
             words = words.replace(remove, " ")
@@ -287,7 +289,9 @@ async def health():
 @app.post("/webhook")
 async def webhook(From: str = Form(...), Body: str = Form(default=""), NumMedia: str = Form(default="0"), MediaUrl0: str = Form(default=None), MediaContentType0: str = Form(default=None)):
     try:
+        print(f"Webhook received: From={From}, Body={Body}, NumMedia={NumMedia}")
         if int(NumMedia) > 0 and MediaContentType0 and "audio" in MediaContentType0:
+            print(f"Processing audio: {MediaUrl0}")
             user_message = await transcribe_audio(MediaUrl0)
         else:
             user_message = Body
@@ -297,6 +301,7 @@ async def webhook(From: str = Form(...), Body: str = Form(default=""), NumMedia:
         await send_whatsapp(From, response)
     except Exception as e:
         print(f"Error: {e}")
+        print(traceback.format_exc())
         await send_whatsapp(From, "Sorry, something went wrong.")
     return Response(content="<Response></Response>", media_type="text/xml")
 
