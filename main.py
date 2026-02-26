@@ -3,11 +3,11 @@ import json
 import httpx
 import asyncio
 import traceback
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from zoneinfo import ZoneInfo
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Form
-from fastapi.responses import Response, HTMLResponse, FileResponse
+from fastapi import FastAPI, Form, Request
+from fastapi.responses import Response, HTMLResponse, FileResponse, JSONResponse
 import anthropic
 from openai import OpenAI
 import asyncpg
@@ -17,6 +17,11 @@ TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+
+STRIPE_PAYMENT_LINK = "https://buy.stripe.com/eVq3cwbT71Cs67T63U4ZG01"
+FREE_DAILY_MESSAGES = 10
+FREE_MAX_REMINDERS = 2
 
 claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
@@ -105,6 +110,22 @@ Just tell me your city or country, like:
 
 This helps me send reminders at the right time!"""
 
+UPGRADE_MSG = f"""You've used all your free messages for today! 🙏
+
+Upgrade to Kazi Pro for unlimited messages and reminders:
+✓ Unlimited messages
+✓ Unlimited reminders
+✓ Priority support
+
+Only $5/month → {STRIPE_PAYMENT_LINK}
+
+Your free messages reset tomorrow!"""
+
+REMINDER_LIMIT_MSG = f"""You've reached the free reminder limit (2 active reminders).
+
+Upgrade to Kazi Pro for unlimited reminders:
+Only $5/month → {STRIPE_PAYMENT_LINK}"""
+
 KAZI_SYSTEM = """You are Kazi, a helpful AI assistant via WhatsApp. Keep responses short and friendly.
 
 YOU CAN SET REMINDERS! When user asks for a reminder, confirm it AND add this at the end:
@@ -125,9 +146,25 @@ async def init_db():
         db_pool = await asyncpg.create_pool(DATABASE_URL)
         async with db_pool.acquire() as conn:
             await conn.execute("CREATE TABLE IF NOT EXISTS reminders (id SERIAL PRIMARY KEY, user_phone VARCHAR(50) NOT NULL, task TEXT NOT NULL, remind_at TIMESTAMP NOT NULL, sent BOOLEAN DEFAULT FALSE)")
-            await conn.execute("CREATE TABLE IF NOT EXISTS users (phone VARCHAR(50) PRIMARY KEY, timezone VARCHAR(50) DEFAULT NULL, welcomed BOOLEAN DEFAULT FALSE)")
+            await conn.execute("CREATE TABLE IF NOT EXISTS users (phone VARCHAR(50) PRIMARY KEY, timezone VARCHAR(50) DEFAULT NULL, welcomed BOOLEAN DEFAULT FALSE, plan VARCHAR(20) DEFAULT 'free', messages_today INT DEFAULT 0, last_message_date DATE DEFAULT CURRENT_DATE, stripe_customer_id VARCHAR(100) DEFAULT NULL)")
             try:
                 await conn.execute("ALTER TABLE users ADD COLUMN welcomed BOOLEAN DEFAULT FALSE")
+            except:
+                pass
+            try:
+                await conn.execute("ALTER TABLE users ADD COLUMN plan VARCHAR(20) DEFAULT 'free'")
+            except:
+                pass
+            try:
+                await conn.execute("ALTER TABLE users ADD COLUMN messages_today INT DEFAULT 0")
+            except:
+                pass
+            try:
+                await conn.execute("ALTER TABLE users ADD COLUMN last_message_date DATE DEFAULT CURRENT_DATE")
+            except:
+                pass
+            try:
+                await conn.execute("ALTER TABLE users ADD COLUMN stripe_customer_id VARCHAR(100) DEFAULT NULL")
             except:
                 pass
         print("DB ready")
@@ -139,11 +176,32 @@ async def close_db():
 async def get_user(phone):
     if db_pool:
         async with db_pool.acquire() as conn:
-            row = await conn.fetchrow("SELECT timezone, welcomed FROM users WHERE phone = $1", phone)
+            row = await conn.fetchrow("SELECT timezone, welcomed, plan, messages_today, last_message_date FROM users WHERE phone = $1", phone)
             if row:
-                return row["timezone"], row["welcomed"]
-            await conn.execute("INSERT INTO users (phone, welcomed) VALUES ($1, FALSE) ON CONFLICT DO NOTHING", phone)
-    return None, False
+                return dict(row)
+            await conn.execute("INSERT INTO users (phone, welcomed, plan, messages_today, last_message_date) VALUES ($1, FALSE, 'free', 0, CURRENT_DATE) ON CONFLICT DO NOTHING", phone)
+            return {"timezone": None, "welcomed": False, "plan": "free", "messages_today": 0, "last_message_date": date.today()}
+    return {"timezone": None, "welcomed": False, "plan": "free", "messages_today": 0, "last_message_date": date.today()}
+
+async def increment_message_count(phone):
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            await conn.execute("""
+                UPDATE users 
+                SET messages_today = CASE 
+                    WHEN last_message_date = CURRENT_DATE THEN messages_today + 1 
+                    ELSE 1 
+                END,
+                last_message_date = CURRENT_DATE
+                WHERE phone = $1
+            """, phone)
+
+async def get_active_reminder_count(phone):
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            row = await conn.fetchrow("SELECT COUNT(*) as count FROM reminders WHERE user_phone = $1 AND sent = FALSE", phone)
+            return row["count"] if row else 0
+    return 0
 
 async def set_user_tz(phone, tz_name):
     if db_pool:
@@ -154,6 +212,11 @@ async def set_user_welcomed(phone):
     if db_pool:
         async with db_pool.acquire() as conn:
             await conn.execute("UPDATE users SET welcomed = TRUE WHERE phone = $1", phone)
+
+async def upgrade_user(phone):
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            await conn.execute("UPDATE users SET plan = 'pro' WHERE phone = $1", phone)
 
 def resolve_tz(text):
     text = text.lower().strip()
@@ -218,8 +281,12 @@ async def transcribe_audio(media_url):
     print(f"Transcription: {transcript.text}")
     return transcript.text
 
-async def save_reminder(user_phone, task, hour, minute, tz_name):
+async def save_reminder(user_phone, task, hour, minute, tz_name, user_plan):
     if db_pool:
+        if user_plan == "free":
+            count = await get_active_reminder_count(user_phone)
+            if count >= FREE_MAX_REMINDERS:
+                return False
         try:
             tz = ZoneInfo(tz_name) if tz_name else timezone.utc
         except:
@@ -232,9 +299,24 @@ async def save_reminder(user_phone, task, hour, minute, tz_name):
         async with db_pool.acquire() as conn:
             await conn.execute("INSERT INTO reminders (user_phone, task, remind_at) VALUES ($1, $2, $3)", user_phone, task, remind_utc)
         print(f"Saved: {task} at {remind_utc} UTC")
+        return True
+    return False
 
 async def get_response(user_message, user_phone):
-    user_tz, welcomed = await get_user(user_phone)
+    user = await get_user(user_phone)
+    user_tz = user.get("timezone")
+    welcomed = user.get("welcomed", False)
+    plan = user.get("plan", "free")
+    messages_today = user.get("messages_today", 0)
+    last_date = user.get("last_message_date")
+    
+    if last_date and last_date != date.today():
+        messages_today = 0
+    
+    if plan == "free" and messages_today >= FREE_DAILY_MESSAGES:
+        return UPGRADE_MSG
+    
+    await increment_message_count(user_phone)
     msg_lower = user_message.lower().strip()
     
     if not welcomed:
@@ -259,6 +341,9 @@ async def get_response(user_message, user_phone):
         elif user_tz is None:
             return f"Hmm, I didn't recognize that. Try a city like 'London', 'New York', 'Tokyo', or 'CST', 'EST', 'CET'."
     
+    if "upgrade" in msg_lower or "pro" in msg_lower or "subscribe" in msg_lower:
+        return f"Upgrade to Kazi Pro for unlimited messages and reminders!\n\nOnly $5/month → {STRIPE_PAYMENT_LINK}"
+    
     now_local = get_local_time(user_tz)
     current_time = now_local.strftime("%Y-%m-%d %H:%M")
     
@@ -272,8 +357,10 @@ async def get_response(user_message, user_phone):
             json_str = text[idx + 14:].strip()
             end = json_str.find("}") + 1
             data = json.loads(json_str[:end])
-            await save_reminder(user_phone, data["task"], data["hour"], data["minute"], user_tz)
+            saved = await save_reminder(user_phone, data["task"], data["hour"], data["minute"], user_tz, plan)
             text = text[:idx].strip()
+            if not saved:
+                text += "\n\n" + REMINDER_LIMIT_MSG
         except Exception as e:
             print(f"Parse error: {e}")
     return text
@@ -304,6 +391,21 @@ async def webhook(From: str = Form(...), Body: str = Form(default=""), NumMedia:
         print(traceback.format_exc())
         await send_whatsapp(From, "Sorry, something went wrong.")
     return Response(content="<Response></Response>", media_type="text/xml")
+
+@app.post("/stripe-webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    try:
+        event = json.loads(payload)
+        if event["type"] == "checkout.session.completed":
+            session = event["data"]["object"]
+            customer_email = session.get("customer_details", {}).get("email", "")
+            customer_phone = session.get("customer_details", {}).get("phone", "")
+            print(f"Payment received: {customer_email} / {customer_phone}")
+        return JSONResponse({"status": "ok"})
+    except Exception as e:
+        print(f"Stripe webhook error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=400)
 
 if __name__ == "__main__":
     import uvicorn
