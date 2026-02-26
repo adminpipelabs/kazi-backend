@@ -91,10 +91,10 @@ TZ_MAP = {
 WELCOME_MSG = """Hi! I'm Kazi, your AI assistant on WhatsApp. I help you get things done with voice and text.
 
 I can:
-- Answer questions
-- Set reminders
-- Do calculations & translations
-- Help with daily tasks
+• Answer questions
+• Set reminders
+• Do calculations & translations
+• Help with daily tasks
 
 I'm designed to be quick and useful - like having a helpful assistant in your pocket!
 
@@ -103,10 +103,10 @@ What would you like help with? 😊"""
 TIMEZONE_MSG = """One quick thing - what's your timezone?
 
 Just tell me your city or country, like:
-- "Stockholm"
-- "New York"  
-- "Germany"
-- "Tokyo"
+• "Stockholm"
+• "New York"  
+• "Germany"
+• "Tokyo"
 
 This helps me send reminders at the right time!"""
 
@@ -368,6 +368,18 @@ async def get_response(user_message, user_phone):
 @app.get("/", response_class=HTMLResponse)
 async def root():
     return FileResponse("index.html")
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy():
+    return FileResponse("privacy.html")
+
+@app.get("/terms", response_class=HTMLResponse)
+async def terms():
+    return FileResponse("terms.html")
+
+@app.get("/cookies", response_class=HTMLResponse)
+async def cookies():
+    return FileResponse("cookies.html")
 
 @app.get("/health")
 async def health():
