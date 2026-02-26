@@ -369,6 +369,10 @@ async def get_response(user_message, user_phone):
 async def root():
     return FileResponse("index.html")
 
+@app.get("/favicon.png")
+async def favicon():
+    return FileResponse("favicon.png")
+
 @app.get("/privacy", response_class=HTMLResponse)
 async def privacy():
     return FileResponse("privacy.html")
