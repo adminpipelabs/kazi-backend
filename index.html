@@ -252,54 +252,6 @@
       font-size: 14px;
     }
     
-    .email-form {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      width: 100%;
-    }
-    
-    .email-input-group {
-      display: flex;
-      gap: 12px;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    
-    .email-form input {
-      flex: 1;
-      min-width: 200px;
-      padding: 16px 20px;
-      border-radius: 14px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      background: rgba(255, 255, 255, 0.05);
-      color: white;
-      font-size: 16px;
-      font-family: inherit;
-      transition: border-color 0.3s ease;
-    }
-    
-    .email-form input::placeholder {
-      color: rgba(255, 255, 255, 0.4);
-    }
-    
-    .email-form input:focus {
-      outline: none;
-      border-color: rgba(255, 107, 53, 0.5);
-    }
-    
-    .email-form .cta-button {
-      padding: 16px 32px;
-      border-radius: 14px;
-      font-size: 16px;
-      white-space: nowrap;
-    }
-    
-    .email-form .hint {
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.4);
-    }
-    
     .demo-section {
       animation: fadeUp 0.8s ease 0.2s forwards;
       opacity: 0;
@@ -539,6 +491,132 @@
       line-height: 1.5;
     }
     
+    /* Pricing Section */
+    .pricing {
+      margin-bottom: 80px;
+      animation: fadeUp 0.8s ease 0.55s forwards;
+      opacity: 0;
+    }
+    
+    .pricing h2 {
+      text-align: center;
+      font-size: clamp(28px, 6vw, 36px);
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+    }
+    
+    .pricing-subtitle {
+      text-align: center;
+      color: rgba(255, 255, 255, 0.5);
+      margin-bottom: 48px;
+      font-size: 16px;
+    }
+    
+    .pricing-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+    
+    .pricing-card {
+      padding: 32px 28px;
+      text-align: center;
+      position: relative;
+    }
+    
+    .pricing-card.featured {
+      border: 2px solid rgba(255, 107, 53, 0.5);
+      background: rgba(255, 107, 53, 0.05);
+    }
+    
+    .pricing-card.featured::before {
+      content: "MOST POPULAR";
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, #ff6b35, #ff8c42);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 100px;
+      letter-spacing: 0.5px;
+    }
+    
+    .pricing-card h3 {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    
+    .pricing-card .price {
+      font-size: 48px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    
+    .pricing-card .price span {
+      font-size: 18px;
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .pricing-card .price-note {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.4);
+      margin-bottom: 24px;
+    }
+    
+    .pricing-card ul {
+      list-style: none;
+      text-align: left;
+      margin-bottom: 28px;
+    }
+    
+    .pricing-card ul li {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.7);
+      padding: 8px 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .pricing-card ul li::before {
+      content: "✓";
+      color: #4ade80;
+      font-weight: 700;
+    }
+    
+    .pricing-card ul li.disabled {
+      color: rgba(255, 255, 255, 0.3);
+    }
+    
+    .pricing-card ul li.disabled::before {
+      content: "—";
+      color: rgba(255, 255, 255, 0.3);
+    }
+    
+    .pricing-card .cta-button {
+      width: 100%;
+      padding: 14px 24px;
+      border-radius: 12px;
+      font-size: 15px;
+    }
+    
+    .pricing-card .cta-button.secondary {
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: none;
+    }
+    
+    .pricing-card .cta-button.secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: none;
+    }
+    
     .final-cta {
       text-align: center;
       padding: 60px 24px;
@@ -573,21 +651,24 @@
       border-top: 1px solid rgba(255, 255, 255, 0.05);
     }
     
+    footer a {
+      color: rgba(255, 255, 255, 0.4);
+      text-decoration: none;
+      font-size: 13px;
+      margin: 0 12px;
+      transition: color 0.3s ease;
+    }
+    
+    footer a:hover {
+      color: rgba(255, 255, 255, 0.7);
+    }
+    
     footer p {
       font-size: 13px;
       color: rgba(255, 255, 255, 0.3);
     }
     
     @media (max-width: 480px) {
-      .email-input-group {
-        flex-direction: column;
-      }
-      
-      .email-form input,
-      .email-form .cta-button {
-        width: 100%;
-      }
-      
       .message-bubble {
         max-width: 90%;
       }
@@ -596,6 +677,10 @@
         flex-direction: column;
         text-align: center;
         align-items: center;
+      }
+      
+      .pricing-cards {
+        grid-template-columns: 1fr;
       }
     }
   </style>
@@ -607,7 +692,7 @@
   
   <header>
     <div class="logo"><span>K</span>azi</div>
-    <a href="https://wa.me/15734125273?text=Hello%20Kazi" target="_blank" class="cta-button whatsapp-button" style="text-decoration: none;">Try Now</a>
+    <a href="https://wa.me/15734125273?text=Hi%20Kazi" target="_blank" class="cta-button whatsapp-button" style="text-decoration: none;">Try Now</a>
   </header>
   
   <main>
@@ -634,17 +719,10 @@
       </p>
       
       <div class="cta-section">
-        <a href="https://wa.me/15734125273?text=Hello%20Kazi" target="_blank" class="cta-button whatsapp-button">
-          💬 Try Kazi Now on WhatsApp
+        <a href="https://wa.me/15734125273?text=Hi%20Kazi" target="_blank" class="cta-button whatsapp-button">
+          💬 Try Kazi Free on WhatsApp
         </a>
-        <p class="divider">or join the waitlist</p>
-        <form class="email-form" onsubmit="handleSubmit(event)">
-          <div class="email-input-group">
-            <input type="email" placeholder="Enter your email" required>
-            <button type="submit" class="cta-button">Join Waitlist</button>
-          </div>
-          <p class="hint">Free for early adopters. No spam, ever.</p>
-        </form>
+        <p class="divider">10 free messages daily • No credit card required</p>
       </div>
     </section>
     
@@ -663,7 +741,7 @@
                 <div class="waveform" id="waveform"></div>
                 <span class="duration">0:03</span>
               </div>
-              <p class="transcription" id="transcription">"Send an email to my team"</p>
+              <p class="transcription" id="transcription">"Remind me to call mom at 5pm"</p>
             </div>
           </div>
           
@@ -671,18 +749,18 @@
             <div class="agent-avatar">K</div>
             <div class="message-bubble">
               <p class="agent-response">
-                <span class="check">✓</span> Done! Email sent to your team with the weekly update.
+                <span class="check">✓</span> Done! I'll remind you to call mom at 5pm today.
               </p>
             </div>
           </div>
         </div>
         
         <div class="language-tags">
-          <span class="language-tag active" data-index="0">Hello</span>
-          <span class="language-tag" data-index="1">Hola</span>
-          <span class="language-tag" data-index="2">Jambo</span>
-          <span class="language-tag" data-index="3">Olá</span>
-          <span class="language-tag" data-index="4">नमस्ते</span>
+          <span class="language-tag active" data-index="0">English</span>
+          <span class="language-tag" data-index="1">Español</span>
+          <span class="language-tag" data-index="2">Swahili</span>
+          <span class="language-tag" data-index="3">Português</span>
+          <span class="language-tag" data-index="4">हिन्दी</span>
         </div>
       </div>
     </section>
@@ -701,7 +779,7 @@
       <div class="feature-card glass-card">
         <span class="feature-icon">⚡</span>
         <h3>Tasks, done</h3>
-        <p>Emails, reminders, searches. Speak once, Kazi handles it.</p>
+        <p>Reminders, questions, calculations. Speak once, Kazi handles it.</p>
       </div>
     </section>
     
@@ -726,8 +804,45 @@
           <div class="step-number">3</div>
           <div class="step-content">
             <h4>Kazi handles it</h4>
-            <p>Your task is done. Reminders set. Emails sent. You move on.</p>
+            <p>Your task is done. Reminders set. Questions answered. You move on.</p>
           </div>
+        </div>
+      </div>
+    </section>
+    
+    <section class="pricing" id="pricing">
+      <h2>Simple pricing</h2>
+      <p class="pricing-subtitle">Start free, upgrade when you need more</p>
+      
+      <div class="pricing-cards">
+        <div class="pricing-card glass-card">
+          <h3>Free</h3>
+          <div class="price">$0<span>/mo</span></div>
+          <p class="price-note">Forever free</p>
+          <ul>
+            <li>10 messages per day</li>
+            <li>2 active reminders</li>
+            <li>Voice & text messages</li>
+            <li>99 languages supported</li>
+            <li class="disabled">Unlimited messages</li>
+            <li class="disabled">Unlimited reminders</li>
+          </ul>
+          <a href="https://wa.me/15734125273?text=Hi%20Kazi" target="_blank" class="cta-button secondary" style="text-decoration: none; display: block;">Get Started</a>
+        </div>
+        
+        <div class="pricing-card glass-card featured">
+          <h3>Pro</h3>
+          <div class="price">$5<span>/mo</span></div>
+          <p class="price-note">Cancel anytime</p>
+          <ul>
+            <li>Unlimited messages</li>
+            <li>Unlimited reminders</li>
+            <li>Voice & text messages</li>
+            <li>99 languages supported</li>
+            <li>Priority support</li>
+            <li>Early access to new features</li>
+          </ul>
+          <a href="https://buy.stripe.com/eVq3cwbT71Cs67T63U4ZG01" target="_blank" class="cta-button" style="text-decoration: none; display: block;">Upgrade to Pro</a>
         </div>
       </div>
     </section>
@@ -737,31 +852,31 @@
         Stop typing.<br>
         <span class="hero-gradient">Start speaking.</span>
       </h2>
-      <p class="social-proof">Join 500+ people on the waitlist</p>
-      <a href="https://wa.me/15734125273?text=Hello%20Kazi" target="_blank" class="cta-button whatsapp-button" style="text-decoration: none; display: inline-block;">
-        💬 Try Kazi Now
+      <p class="social-proof">Join hundreds of people using Kazi daily</p>
+      <a href="https://wa.me/15734125273?text=Hi%20Kazi" target="_blank" class="cta-button whatsapp-button" style="text-decoration: none; display: inline-block;">
+        💬 Try Kazi Free
       </a>
     </section>
   </main>
   
   <footer>
     <div style="margin-bottom: 12px;">
-      <a href="/privacy" style="color: rgba(255,255,255,0.4); text-decoration: none; font-size: 13px; margin: 0 12px; transition: color 0.3s ease;">Privacy Policy</a>
+      <a href="/privacy">Privacy Policy</a>
       <span style="color: rgba(255,255,255,0.2);">|</span>
-      <a href="/terms" style="color: rgba(255,255,255,0.4); text-decoration: none; font-size: 13px; margin: 0 12px; transition: color 0.3s ease;">Terms of Service</a>
+      <a href="/terms">Terms of Service</a>
       <span style="color: rgba(255,255,255,0.2);">|</span>
-      <a href="/cookies" style="color: rgba(255,255,255,0.4); text-decoration: none; font-size: 13px; margin: 0 12px; transition: color 0.3s ease;">Cookie Policy</a>
+      <a href="/cookies">Cookie Policy</a>
     </div>
-    <p>&copy; 2026 Kazi &middot; Built for the world</p>
+    <p>&copy; 2026 Kazi · Built for the world</p>
   </footer>
   
   <script>
     const languages = [
-      { greeting: 'Hello', task: 'Send an email to my team' },
-      { greeting: 'Hola', task: 'Envía un correo a mi equipo' },
-      { greeting: 'Jambo', task: 'Tuma barua pepe kwa timu yangu' },
-      { greeting: 'Olá', task: 'Envie um email para minha equipe' },
-      { greeting: 'नमस्ते', task: 'मेरी टीम को ईमेल भेजो' },
+      { greeting: 'English', task: 'Remind me to call mom at 5pm' },
+      { greeting: 'Español', task: 'Recuérdame llamar a mamá a las 5pm' },
+      { greeting: 'Swahili', task: 'Nikumbushe kupiga simu mama saa 11 jioni' },
+      { greeting: 'Português', task: 'Me lembre de ligar para mamãe às 17h' },
+      { greeting: 'हिन्दी', task: 'मुझे शाम 5 बजे माँ को फोन करने की याद दिलाओ' },
     ];
     
     let activeIndex = 0;
@@ -796,38 +911,6 @@
     }
     
     setInterval(rotateLanguage, 3000);
-    
-    async function handleSubmit(e) {
-      e.preventDefault();
-      const input = e.target.querySelector('input');
-      const button = e.target.querySelector('button');
-      const email = input.value;
-      
-      button.textContent = 'Joining...';
-      button.disabled = true;
-      
-      try {
-        const res = await fetch('https://enchanting-possibility-production-60d1.up.railway.app/api/waitlist', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        });
-        
-        if (res.ok) {
-          button.textContent = '✓ You\'re in!';
-          input.value = '';
-          setTimeout(() => {
-            button.textContent = 'Join Waitlist';
-            button.disabled = false;
-          }, 3000);
-        } else {
-          throw new Error('Failed');
-        }
-      } catch (err) {
-        button.textContent = 'Try again';
-        button.disabled = false;
-      }
-    }
   </script>
 </body>
 </html>
