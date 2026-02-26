@@ -17,9 +17,6 @@
     }
     header {
       padding: 20px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
       max-width: 800px;
       margin: 0 auto;
     }
@@ -32,13 +29,6 @@
       color: #fafafa;
     }
     .logo span { color: #ff6b35; }
-    .back-link {
-      color: rgba(255, 255, 255, 0.5);
-      text-decoration: none;
-      font-size: 14px;
-      transition: color 0.3s ease;
-    }
-    .back-link:hover { color: #ff6b35; }
     main {
       max-width: 800px;
       margin: 0 auto;
@@ -50,102 +40,105 @@
       margin-bottom: 8px;
       letter-spacing: -1px;
     }
-    .updated {
+    .last-updated {
       color: rgba(255, 255, 255, 0.4);
       font-size: 14px;
-      margin-bottom: 48px;
+      margin-bottom: 40px;
     }
     h2 {
       font-size: 22px;
       font-weight: 600;
-      margin-top: 40px;
-      margin-bottom: 16px;
+      margin: 32px 0 16px;
       color: #ff8c42;
     }
     p, li {
       font-size: 16px;
       line-height: 1.7;
-      color: rgba(255, 255, 255, 0.7);
-      margin-bottom: 12px;
-    }
-    ul {
-      padding-left: 24px;
+      color: rgba(255, 255, 255, 0.75);
       margin-bottom: 16px;
     }
-    li { margin-bottom: 8px; }
-    strong { color: rgba(255, 255, 255, 0.9); }
-    a { color: #ff6b35; }
+    ul {
+      margin-left: 24px;
+      margin-bottom: 16px;
+    }
+    a {
+      color: #ff6b35;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
     footer {
       text-align: center;
       padding: 40px 24px;
       border-top: 1px solid rgba(255, 255, 255, 0.05);
     }
+    footer a {
+      color: rgba(255, 255, 255, 0.4);
+      margin: 0 12px;
+      font-size: 13px;
+    }
     footer p {
       font-size: 13px;
       color: rgba(255, 255, 255, 0.3);
-    }
-    footer a {
-      color: rgba(255, 255, 255, 0.4);
-      text-decoration: none;
-      transition: color 0.3s ease;
-    }
-    footer a:hover { color: #ff6b35; }
-    .footer-links {
-      margin-bottom: 12px;
-    }
-    .footer-links a {
-      margin: 0 12px;
-      font-size: 13px;
+      margin-top: 12px;
     }
   </style>
 </head>
 <body>
   <header>
     <a href="/" class="logo"><span>K</span>azi</a>
-    <a href="/" class="back-link">← Back to home</a>
   </header>
-
+  
   <main>
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: February 11, 2026</p>
-
-    <p>Kazi is operated by Pipe Labs, LLC ("Pipe Labs," "we," "us," or "our"), located at 131 Continental Dr, Suite 305, Newark, DE 19713, USA.</p>
-    <p>This Privacy Policy explains how we collect, use, and protect your information when you use Kazi, our AI-powered WhatsApp assistant service.</p>
-
+    <p class="last-updated">Last updated: February 25, 2026</p>
+    
+    <p>Kazi ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your information when you use our WhatsApp-based AI assistant service.</p>
+    
     <h2>Information We Collect</h2>
-    <p><strong>Phone Number</strong><br>We collect your phone number to identify your account and deliver our service via WhatsApp.</p>
-    <p><strong>Messages</strong><br>We process the text and voice messages you send to Kazi to provide responses. Voice messages are transcribed to text for processing.</p>
-    <p><strong>Usage Data</strong><br>We track message counts to manage free tier limits and service quality.</p>
-
+    <p>When you use Kazi, we collect:</p>
+    <ul>
+      <li><strong>Phone Number:</strong> Your WhatsApp phone number to identify your account and send messages.</li>
+      <li><strong>Messages:</strong> Text and voice messages you send to Kazi to process your requests.</li>
+      <li><strong>Voice Data:</strong> Audio messages are transcribed using third-party services (OpenAI Whisper) and are not stored after processing.</li>
+      <li><strong>Reminders:</strong> Tasks and times you set for reminders.</li>
+      <li><strong>Timezone:</strong> Your location/timezone preference for accurate reminder delivery.</li>
+      <li><strong>Usage Data:</strong> Message counts and interaction patterns to manage service limits.</li>
+    </ul>
+    
     <h2>How We Use Your Information</h2>
+    <p>We use your information to:</p>
     <ul>
-      <li>To provide and operate the Kazi service</li>
-      <li>To respond to your messages and requests</li>
-      <li>To manage your subscription and billing</li>
-      <li>To improve our service</li>
-      <li>To communicate service updates</li>
+      <li>Provide and improve the Kazi assistant service</li>
+      <li>Process your voice and text requests</li>
+      <li>Send you reminders at the times you specify</li>
+      <li>Manage your account and subscription</li>
+      <li>Communicate service updates</li>
     </ul>
-
+    
     <h2>Third-Party Services</h2>
-    <p>We use the following services to operate Kazi:</p>
+    <p>Kazi uses the following third-party services:</p>
     <ul>
-      <li><strong>Twilio</strong> — WhatsApp messaging</li>
-      <li><strong>OpenAI</strong> — Voice transcription (Whisper)</li>
-      <li><strong>Anthropic</strong> — AI responses (Claude)</li>
-      <li><strong>Stripe</strong> — Payment processing</li>
+      <li><strong>Twilio:</strong> For WhatsApp messaging infrastructure</li>
+      <li><strong>OpenAI:</strong> For voice transcription (Whisper API)</li>
+      <li><strong>Anthropic:</strong> For AI responses (Claude)</li>
+      <li><strong>Stripe:</strong> For payment processing</li>
     </ul>
-    <p>These providers have their own privacy policies governing their use of your data.</p>
-
+    <p>Each service has its own privacy policy governing how they handle data.</p>
+    
     <h2>Data Retention</h2>
+    <p>We retain your data as follows:</p>
     <ul>
-      <li>Messages are processed in real-time and not stored permanently</li>
-      <li>Account information is retained while your account is active</li>
-      <li>You may request deletion of your data at any time</li>
+      <li><strong>Messages:</strong> Not stored permanently. Processed in real-time and discarded.</li>
+      <li><strong>Voice recordings:</strong> Deleted immediately after transcription.</li>
+      <li><strong>Reminders:</strong> Stored until completed, then marked as sent.</li>
+      <li><strong>Account data:</strong> Retained while your account is active.</li>
     </ul>
-
+    
     <h2>Data Security</h2>
-    <p>We implement reasonable security measures to protect your information. However, no method of transmission over the internet is 100% secure.</p>
-
+    <p>We implement appropriate technical and organizational measures to protect your personal data, including encryption in transit and secure database storage.</p>
+    
     <h2>Your Rights</h2>
     <p>You have the right to:</p>
     <ul>
@@ -153,31 +146,28 @@
       <li>Request deletion of your data</li>
       <li>Opt out of the service at any time</li>
     </ul>
-    <p>To exercise these rights, contact us at <a href="mailto:privacy@pipelabs.xyz">privacy@pipelabs.xyz</a></p>
-
+    <p>To exercise these rights, message Kazi with "delete my data" or contact us at privacy@kazi.to</p>
+    
     <h2>Children's Privacy</h2>
-    <p>Kazi is not intended for children under 13. We do not knowingly collect information from children under 13.</p>
-
+    <p>Kazi is not intended for children under 13 years of age. We do not knowingly collect personal information from children.</p>
+    
     <h2>Changes to This Policy</h2>
-    <p>We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new policy on this page.</p>
-
+    <p>We may update this Privacy Policy from time to time. We will notify you of significant changes through the service.</p>
+    
     <h2>Contact Us</h2>
     <p>If you have questions about this Privacy Policy, contact us at:</p>
-    <p>
-      <strong>Pipe Labs, LLC</strong><br>
-      131 Continental Dr, Suite 305<br>
-      Newark, DE 19713, USA<br>
-      Email: <a href="mailto:privacy@pipelabs.xyz">privacy@pipelabs.xyz</a>
-    </p>
+    <p>Email: <a href="mailto:privacy@kazi.to">privacy@kazi.to</a></p>
   </main>
-
+  
   <footer>
-    <div class="footer-links">
+    <div>
       <a href="/privacy">Privacy Policy</a>
+      <span style="color: rgba(255,255,255,0.2);">|</span>
       <a href="/terms">Terms of Service</a>
+      <span style="color: rgba(255,255,255,0.2);">|</span>
       <a href="/cookies">Cookie Policy</a>
     </div>
-    <p>&copy; 2026 Kazi &middot; Built for the world</p>
+    <p>&copy; 2026 Kazi · Built for the world</p>
   </footer>
 </body>
 </html>
