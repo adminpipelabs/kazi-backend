@@ -304,7 +304,6 @@ async def save_reminder(user_phone, task, hour, minute, tz_name):
             tz = timezone.utc
         now_local = datetime.now(tz)
         remind_local = now_local.replace(hour=hour, minute=minute, second=0, microsecond=0)
-        # Only set for tomorrow if the time has already passed today
         if remind_local <= now_local:
             remind_local = remind_local + timedelta(days=1)
         remind_utc = remind_local.astimezone(timezone.utc).replace(tzinfo=None)
@@ -322,25 +321,20 @@ async def get_response(user_message, user_phone):
     messages_today = user.get("messages_today", 0)
     last_date = user.get("last_message_date")
     
-    # Reset count if new day
     if last_date and last_date != date.today():
         messages_today = 0
     
-    # Check message limit for free users
     if plan == "free" and messages_today >= FREE_DAILY_MESSAGES:
         return LIMIT_REACHED_MSG
     
-    # Increment message count and get new count
     new_count = await increment_message_count(user_phone)
     
     msg_lower = user_message.lower().strip()
     
-    # Welcome flow
     if not welcomed:
         await set_user_welcomed(user_phone)
         return WELCOME_MSG + "\n\n" + TIMEZONE_MSG
     
-    # Timezone handling
     tz_triggers = ["timezone", "time zone", "change tz", "my time is", "i'm in", "im in", "i am in", "i live in", "living in", "based in", "my time", "set it to", "cst", "est", "pst", "gmt", "cet"]
     if user_tz is None or any(trigger in msg_lower for trigger in tz_triggers):
         words = msg_lower
@@ -359,11 +353,9 @@ async def get_response(user_message, user_phone):
         elif user_tz is None:
             return f"Hmm, I didn't recognize that. Try a city like 'London', 'New York', 'Tokyo', or 'CST', 'EST', 'CET'."
     
-    # Upgrade request
     if "upgrade" in msg_lower or "subscribe" in msg_lower:
         return f"Upgrade to Kazi Pro for unlimited messages and reminders!\n\nOnly $5/month → {STRIPE_PAYMENT_LINK}"
     
-    # Get AI response
     now_local = get_local_time(user_tz) if user_tz else datetime.now(timezone.utc)
     current_time = now_local.strftime("%Y-%m-%d %H:%M")
     tz_display = user_tz if user_tz else "UTC"
@@ -372,7 +364,6 @@ async def get_response(user_message, user_phone):
     response = claude.messages.create(model="claude-sonnet-4-20250514", max_tokens=500, system=system, messages=[{"role": "user", "content": user_message}])
     text = response.content[0].text
     
-    # Parse reminder if present
     if "REMINDER_JSON:" in text:
         try:
             idx = text.find("REMINDER_JSON:")
@@ -384,7 +375,6 @@ async def get_response(user_message, user_phone):
         except Exception as e:
             print(f"Parse error: {e}")
     
-    # Add low message warning for free users (when 2 messages left)
     if plan == "free":
         remaining = FREE_DAILY_MESSAGES - new_count
         if remaining == 2:
@@ -461,6 +451,16 @@ async def stripe_webhook(request: Request):
             customer_email = session.get("customer_details", {}).get("email", "")
             customer_phone = session.get("customer_details", {}).get("phone", "")
             print(f"Payment received: {customer_email} / {customer_phone}")
+            
+            if customer_phone and db_pool:
+                digits = ''.join(filter(str.isdigit, customer_phone))
+                async with db_pool.acquire() as conn:
+                    await conn.execute(
+                        "UPDATE users SET plan = 'pro' WHERE phone LIKE '%' || $1 || '%'", 
+                        digits[-10:]
+                    )
+                    print(f"Upgraded user with phone: {digits[-10:]}")
+                    
         return JSONResponse({"status": "ok"})
     except Exception as e:
         print(f"Stripe webhook error: {e}")
