@@ -3,7 +3,7 @@ import json
 import httpx
 import asyncio
 import traceback
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 from zoneinfo import ZoneInfo
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Form, Request
@@ -21,7 +21,6 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 
 STRIPE_PAYMENT_LINK = "https://buy.stripe.com/eVq3cwbT71Cs67T63U4ZG01"
 FREE_DAILY_MESSAGES = 10
-FREE_MAX_REMINDERS = 2
 
 claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 openai_client = OpenAI(api_key=OPENAI_API_KEY)
@@ -96,7 +95,7 @@ I can:
 • Do calculations & translations
 • Help with daily tasks
 
-I'm designed to be quick and useful - like having a helpful assistant in your pocket!
+📱 You get 10 free messages per day — ask anything, set reminders, chat. Resets daily!
 
 What would you like help with? 😊"""
 
@@ -110,35 +109,55 @@ Just tell me your city or country, like:
 
 This helps me send reminders at the right time!"""
 
-UPGRADE_MSG = f"""You've used all your free messages for today! 🙏
+LOW_MESSAGES_WARNING = f"""💡 2 free messages left today!
 
-Upgrade to Kazi Pro for unlimited messages and reminders:
-✓ Unlimited messages
-✓ Unlimited reminders
-✓ Priority support
+Tomorrow you get 10 more — or upgrade now:
 
-Only $5/month → {STRIPE_PAYMENT_LINK}
+Kazi Pro — $5/month
+✓ Unlimited messages & reminders
+✓ Powered by Claude AI + OpenAI voice
+✓ Just like a Starbucks coffee ☕
 
-Your free messages reset tomorrow!"""
+Upgrade → {STRIPE_PAYMENT_LINK}"""
 
-REMINDER_LIMIT_MSG = f"""You've reached the free reminder limit (2 active reminders).
+LIMIT_REACHED_MSG = f"""You've used your 10 free messages for today! ☕
 
-Upgrade to Kazi Pro for unlimited reminders:
-Only $5/month → {STRIPE_PAYMENT_LINK}"""
+Come back tomorrow for 10 more — or upgrade:
+
+Kazi Pro — $5/month
+✓ Unlimited messages & reminders
+✓ Powered by Claude AI + OpenAI voice
+✓ Just like a Starbucks coffee ☕
+
+Upgrade → {STRIPE_PAYMENT_LINK}"""
 
 KAZI_SYSTEM = """You are Kazi, a helpful AI assistant via WhatsApp. Keep responses short and friendly.
 
-YOU CAN SET REMINDERS! When user asks for a reminder, confirm it AND add this at the end:
-REMINDER_JSON:{"task":"call Emma","hour":15,"minute":0}
-Convert time to 24h format. Current time: {current_time} ({timezone})
+CURRENT TIME: {current_time} (User's local timezone: {timezone})
 
-INVITE FRIENDS: If user wants to invite or share Kazi, give them this message to forward:
+REMINDERS - VERY IMPORTANT:
+When user asks for a reminder, you MUST:
+1. Confirm the reminder
+2. Add this EXACT format at the end: REMINDER_JSON:{{"task":"description","hour":HH,"minute":MM}}
 
-"Hey! I've been using Kazi - an AI assistant on WhatsApp that sets reminders, answers questions, and helps with tasks. Try it!
+TIME RULES:
+- Use 24-hour format in the JSON (e.g., 8 AM = 8, 8 PM = 20)
+- If the requested time is LATER than current time TODAY, set it for TODAY (not tomorrow)
+- Only set for tomorrow if the time has ALREADY PASSED today
+- "this morning" = 08:00
+- "this afternoon" = 14:00  
+- "this evening" / "tonight" = 19:00
+- "in X minutes/hours" = current time + X
 
-Join here: https://wa.me/15734125273?text=Hi%20Kazi"
+Example: If current time is 08:17 and user asks for "8:45 AM", that's TODAY (28 minutes from now), NOT tomorrow.
 
-TIMEZONE: If user mentions their location or timezone, DO NOT handle it yourself. Just say "Let me update your timezone" - the system will handle it."""
+TIMEZONE: If user mentions their location or timezone, just say "Let me update your timezone" - the system handles it.
+
+TIME QUERIES: If user asks "what time is it", tell them: {current_time}
+
+INVITE: If user wants to share Kazi:
+"Hey! Try Kazi - an AI assistant on WhatsApp: https://wa.me/15734125273?text=Hi%20Kazi"
+"""
 
 async def init_db():
     global db_pool
@@ -186,7 +205,7 @@ async def get_user(phone):
 async def increment_message_count(phone):
     if db_pool:
         async with db_pool.acquire() as conn:
-            await conn.execute("""
+            result = await conn.fetchrow("""
                 UPDATE users 
                 SET messages_today = CASE 
                     WHEN last_message_date = CURRENT_DATE THEN messages_today + 1 
@@ -194,14 +213,10 @@ async def increment_message_count(phone):
                 END,
                 last_message_date = CURRENT_DATE
                 WHERE phone = $1
+                RETURNING messages_today
             """, phone)
-
-async def get_active_reminder_count(phone):
-    if db_pool:
-        async with db_pool.acquire() as conn:
-            row = await conn.fetchrow("SELECT COUNT(*) as count FROM reminders WHERE user_phone = $1 AND sent = FALSE", phone)
-            return row["count"] if row else 0
-    return 0
+            return result["messages_today"] if result else 1
+    return 1
 
 async def set_user_tz(phone, tz_name):
     if db_pool:
@@ -281,24 +296,21 @@ async def transcribe_audio(media_url):
     print(f"Transcription: {transcript.text}")
     return transcript.text
 
-async def save_reminder(user_phone, task, hour, minute, tz_name, user_plan):
+async def save_reminder(user_phone, task, hour, minute, tz_name):
     if db_pool:
-        if user_plan == "free":
-            count = await get_active_reminder_count(user_phone)
-            if count >= FREE_MAX_REMINDERS:
-                return False
         try:
             tz = ZoneInfo(tz_name) if tz_name else timezone.utc
         except:
             tz = timezone.utc
         now_local = datetime.now(tz)
         remind_local = now_local.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        # Only set for tomorrow if the time has already passed today
         if remind_local <= now_local:
-            remind_local = remind_local.replace(day=remind_local.day + 1)
+            remind_local = remind_local + timedelta(days=1)
         remind_utc = remind_local.astimezone(timezone.utc).replace(tzinfo=None)
         async with db_pool.acquire() as conn:
             await conn.execute("INSERT INTO reminders (user_phone, task, remind_at) VALUES ($1, $2, $3)", user_phone, task, remind_utc)
-        print(f"Saved: {task} at {remind_utc} UTC")
+        print(f"Saved: {task} at {remind_utc} UTC (local: {remind_local})")
         return True
     return False
 
@@ -310,19 +322,25 @@ async def get_response(user_message, user_phone):
     messages_today = user.get("messages_today", 0)
     last_date = user.get("last_message_date")
     
+    # Reset count if new day
     if last_date and last_date != date.today():
         messages_today = 0
     
+    # Check message limit for free users
     if plan == "free" and messages_today >= FREE_DAILY_MESSAGES:
-        return UPGRADE_MSG
+        return LIMIT_REACHED_MSG
     
-    await increment_message_count(user_phone)
+    # Increment message count and get new count
+    new_count = await increment_message_count(user_phone)
+    
     msg_lower = user_message.lower().strip()
     
+    # Welcome flow
     if not welcomed:
         await set_user_welcomed(user_phone)
         return WELCOME_MSG + "\n\n" + TIMEZONE_MSG
     
+    # Timezone handling
     tz_triggers = ["timezone", "time zone", "change tz", "my time is", "i'm in", "im in", "i am in", "i live in", "living in", "based in", "my time", "set it to", "cst", "est", "pst", "gmt", "cet"]
     if user_tz is None or any(trigger in msg_lower for trigger in tz_triggers):
         words = msg_lower
@@ -341,28 +359,37 @@ async def get_response(user_message, user_phone):
         elif user_tz is None:
             return f"Hmm, I didn't recognize that. Try a city like 'London', 'New York', 'Tokyo', or 'CST', 'EST', 'CET'."
     
-    if "upgrade" in msg_lower or "pro" in msg_lower or "subscribe" in msg_lower:
+    # Upgrade request
+    if "upgrade" in msg_lower or "subscribe" in msg_lower:
         return f"Upgrade to Kazi Pro for unlimited messages and reminders!\n\nOnly $5/month → {STRIPE_PAYMENT_LINK}"
     
-    now_local = get_local_time(user_tz)
+    # Get AI response
+    now_local = get_local_time(user_tz) if user_tz else datetime.now(timezone.utc)
     current_time = now_local.strftime("%Y-%m-%d %H:%M")
+    tz_display = user_tz if user_tz else "UTC"
     
-    system = KAZI_SYSTEM.replace("{current_time}", current_time).replace("{timezone}", user_tz)
+    system = KAZI_SYSTEM.replace("{current_time}", current_time).replace("{timezone}", tz_display)
     response = claude.messages.create(model="claude-sonnet-4-20250514", max_tokens=500, system=system, messages=[{"role": "user", "content": user_message}])
     text = response.content[0].text
     
+    # Parse reminder if present
     if "REMINDER_JSON:" in text:
         try:
             idx = text.find("REMINDER_JSON:")
             json_str = text[idx + 14:].strip()
             end = json_str.find("}") + 1
             data = json.loads(json_str[:end])
-            saved = await save_reminder(user_phone, data["task"], data["hour"], data["minute"], user_tz, plan)
+            await save_reminder(user_phone, data["task"], data["hour"], data["minute"], user_tz)
             text = text[:idx].strip()
-            if not saved:
-                text += "\n\n" + REMINDER_LIMIT_MSG
         except Exception as e:
             print(f"Parse error: {e}")
+    
+    # Add low message warning for free users (when 2 messages left)
+    if plan == "free":
+        remaining = FREE_DAILY_MESSAGES - new_count
+        if remaining == 2:
+            text += "\n\n" + LOW_MESSAGES_WARNING
+    
     return text
 
 @app.get("/", response_class=HTMLResponse)
@@ -388,6 +415,22 @@ async def cookies():
 @app.get("/health")
 async def health():
     return {"status": "healthy", "db": "connected" if db_pool else "none"}
+
+@app.get("/stats")
+async def stats():
+    if db_pool:
+        async with db_pool.acquire() as conn:
+            total = await conn.fetchval("SELECT COUNT(*) FROM users")
+            pro = await conn.fetchval("SELECT COUNT(*) FROM users WHERE plan = 'pro'")
+            today = await conn.fetchval("SELECT COUNT(*) FROM users WHERE last_message_date = CURRENT_DATE")
+            reminders = await conn.fetchval("SELECT COUNT(*) FROM reminders WHERE sent = FALSE")
+            return {
+                "total_users": total,
+                "pro_users": pro,
+                "active_today": today,
+                "pending_reminders": reminders
+            }
+    return {"error": "no database"}
 
 @app.post("/webhook")
 async def webhook(From: str = Form(...), Body: str = Form(default=""), NumMedia: str = Form(default="0"), MediaUrl0: str = Form(default=None), MediaContentType0: str = Form(default=None)):
