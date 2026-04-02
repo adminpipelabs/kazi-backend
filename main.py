@@ -18,6 +18,8 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DATABASE_URL = os.getenv("DATABASE_URL")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
+AIFREDO_API_URL = os.getenv("AIFREDO_API_URL", "https://aifredo.chat")
+KAZI_AIFREDO_SECRET = os.getenv("KAZI_AIFREDO_SECRET", "")
 
 STRIPE_PAYMENT_LINK = "https://buy.stripe.com/eVq3cwbT71Cs67T63U4ZG01"
 FREE_DAILY_MESSAGES = 10
@@ -313,6 +315,26 @@ async def save_reminder(user_phone, task, hour, minute, tz_name):
         return True
     return False
 
+async def route_to_aifredo(phone: str, message: str) -> str | None:
+    """Call AiFredo agent if this phone number is linked. Returns reply or None."""
+    if not KAZI_AIFREDO_SECRET:
+        return None
+    try:
+        async with httpx.AsyncClient() as client:
+            res = await client.post(
+                f"{AIFREDO_API_URL}/api/kazi/message",
+                json={"phone": phone, "message": message},
+                headers={"x-kazi-secret": KAZI_AIFREDO_SECRET},
+                timeout=30.0
+            )
+            if res.status_code == 200:
+                data = res.json()
+                if data.get("linked"):
+                    return data.get("reply")
+    except Exception as e:
+        print(f"[AiFredo] routing error: {e}")
+    return None
+
 async def get_response(user_message, user_phone):
     user = await get_user(user_phone)
     user_tz = user.get("timezone")
@@ -433,8 +455,13 @@ async def webhook(From: str = Form(...), Body: str = Form(default=""), NumMedia:
             user_message = Body
         if not user_message.strip():
             return Response(content="", media_type="text/xml")
-        response = await get_response(user_message, From)
-        await send_whatsapp(From, response)
+        # Check if this user has an AiFredo agent linked — use it if so
+        aifredo_reply = await route_to_aifredo(From, user_message)
+        if aifredo_reply:
+            await send_whatsapp(From, aifredo_reply)
+        else:
+            response = await get_response(user_message, From)
+            await send_whatsapp(From, response)
     except Exception as e:
         print(f"Error: {e}")
         print(traceback.format_exc())
