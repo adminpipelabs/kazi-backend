@@ -455,6 +455,29 @@ async def webhook(From: str = Form(...), Body: str = Form(default=""), NumMedia:
             user_message = Body
         if not user_message.strip():
             return Response(content="", media_type="text/xml")
+
+        # Handle AiFredo connection code: "connect XXXXXXXX"
+        stripped = user_message.strip()
+        if stripped.lower().startswith("connect "):
+            code = stripped[8:].strip()
+            try:
+                async with httpx.AsyncClient(timeout=10) as client:
+                    r = await client.post(
+                        f"{AIFREDO_API_URL}/api/kazi/activate",
+                        json={"code": code, "phone": From},
+                        headers={"x-kazi-secret": KAZI_AIFREDO_SECRET},
+                    )
+                    data = r.json()
+                if data.get("ok"):
+                    agent = data.get("agent_name", "your agent")
+                    await send_whatsapp(From, f"✅ Connected! {agent} is now available here on WhatsApp. Just send a message anytime.")
+                else:
+                    await send_whatsapp(From, "❌ That code didn't work — it may have expired. Go to AiFredo and generate a new one.")
+            except Exception as e:
+                print(f"[AiFredo activate] error: {e}")
+                await send_whatsapp(From, "Something went wrong connecting. Please try again.")
+            return Response(content="<Response></Response>", media_type="text/xml")
+
         # Check if this user has an AiFredo agent linked — use it if so
         aifredo_reply = await route_to_aifredo(From, user_message)
         if aifredo_reply:
