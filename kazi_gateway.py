@@ -238,12 +238,12 @@ async def handle_connect_message(db_pool, whatsapp_number: str, token: str) -> s
 async def call_product_message(connection: dict, message: str,
                                whatsapp_number: str, channel: str = "whatsapp"):
     """
-    POST {endpoint}/api/kazi/{client_id}/message with Bearer auth.
+    POST {endpoint}/api/kazi/ao/{client_id}/message with Bearer auth.
     Returns the reply string. Raises on failure.
     """
     endpoint = connection["product_api_endpoint"].rstrip("/")
     client_id = connection["client_id"]
-    url = f"{endpoint}/api/kazi/{client_id}/message"
+    url = f"{endpoint}/api/kazi/ao/{client_id}/message"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {connection['product_api_key']}",
