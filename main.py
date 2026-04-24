@@ -12,6 +12,8 @@ import anthropic
 from openai import OpenAI
 import asyncpg
 
+import kazi_gateway
+
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
@@ -188,6 +190,7 @@ async def init_db():
                 await conn.execute("ALTER TABLE users ADD COLUMN stripe_customer_id VARCHAR(100) DEFAULT NULL")
             except:
                 pass
+        await kazi_gateway.init_gateway_schema(db_pool)
         print("DB ready")
 
 async def close_db():
@@ -281,6 +284,7 @@ async def check_reminders():
 async def lifespan(app: FastAPI):
     await init_db()
     asyncio.create_task(check_reminders())
+    asyncio.create_task(kazi_gateway.scheduled_loop(db_pool, send_whatsapp))
     yield
     await close_db()
 
@@ -456,9 +460,44 @@ async def webhook(From: str = Form(...), Body: str = Form(default=""), NumMedia:
         if not user_message.strip():
             return Response(content="", media_type="text/xml")
 
-        # Handle AiFredo connection code: "connect XXXXXXXX"
         stripped = user_message.strip()
-        if stripped.lower().startswith("connect "):
+
+        # 1. Gateway linking: "CONNECT-<token>" — exchange with Always On
+        token = kazi_gateway.extract_connect_token(stripped)
+        if token:
+            print(f"[GATEWAY] CONNECT token received from {From}")
+            reply = await kazi_gateway.handle_connect_message(db_pool, From, token)
+            # If link succeeded, install default schedules for this connection
+            if reply == kazi_gateway.MSG_LINKED:
+                conn = await kazi_gateway.get_connection(db_pool, From)
+                if conn:
+                    await kazi_gateway.install_default_schedules(
+                        db_pool, From, conn["client_id"]
+                    )
+                    print(f"[GATEWAY] Default schedules installed for {From}")
+            await send_whatsapp(From, reply)
+            return Response(content="<Response></Response>", media_type="text/xml")
+
+        # 2. Gateway routing: if sender is linked to a product, route to product API.
+        #    No LLM call in Kazi for routed messages.
+        connection = await kazi_gateway.get_connection(db_pool, From)
+        if connection:
+            print(f"[GATEWAY] Routing {From} to {connection.get('product')} client {connection.get('client_id')}")
+            # Ack immediately (satisfies Twilio 5s timeout)
+            await send_whatsapp(From, kazi_gateway.ACK_MESSAGE)
+            # Process in background; reply arrives as a second WhatsApp message
+            asyncio.create_task(
+                kazi_gateway.process_and_reply(
+                    db_pool, send_whatsapp, From, user_message, connection
+                )
+            )
+            return Response(content="<Response></Response>", media_type="text/xml")
+
+        print(f"[GATEWAY] No connection found for {From} — falling through to standalone Kazi")
+
+        # 3. Legacy AiFredo bridge (aifredo.chat) — kept for existing users.
+        stripped_lower = stripped.lower()
+        if stripped_lower.startswith("connect "):
             code = stripped[8:].strip()
             try:
                 async with httpx.AsyncClient(timeout=10) as client:
@@ -478,11 +517,11 @@ async def webhook(From: str = Form(...), Body: str = Form(default=""), NumMedia:
                 await send_whatsapp(From, "Something went wrong connecting. Please try again.")
             return Response(content="<Response></Response>", media_type="text/xml")
 
-        # Check if this user has an AiFredo agent linked — use it if so
         aifredo_reply = await route_to_aifredo(From, user_message)
         if aifredo_reply:
             await send_whatsapp(From, aifredo_reply)
         else:
+            # 4. Standalone Kazi session (user not linked to any product) — Kazi's own Claude
             response = await get_response(user_message, From)
             await send_whatsapp(From, response)
     except Exception as e:
